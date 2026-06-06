@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Nuggercise</title>
+  <meta name="description" content="Mobile-first micro-fitness tracker. Log tiny workouts, build massive streaks." />
+  <meta name="theme-color" content="#FF6B35" />
+  <link rel="manifest" href="manifest.json" />
+  <style>
+    :root {
+      --ng-orange: #FF6B35;
+      --ng-orange-light: #FFF0EB;
+      --ng-orange-dark: #CC4A1A;
+      --ng-green: #06D6A0;
+      --ng-red: #EF476F;
+      --ng-bg: #F8F7F4;
+      --ng-surface: #FFFFFF;
+      --ng-border: rgba(0,0,0,0.09);
+      --ng-text: #1A1A1A;
+      --ng-muted: #6B6B6B;
+      --ng-subtle: #9E9E9E;
+      --ng-radius: 14px;
+      --ng-radius-sm: 9px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    html, body { height: 100%; background: var(--ng-bg); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: var(--ng-text); overscroll-behavior: none; }
+    #app { max-width: 430px; margin: 0 auto; min-height: 100vh; background: var(--ng-bg); position: relative; overflow: hidden; }
+
+    /* ── SCREENS ── */
+    .screen { display: none; flex-direction: column; min-height: 100vh; }
+    .screen.active { display: flex; }
+
+    /* ── AUTH SCREEN ── */
+    #screen-auth { align-items: center; justify-content: center; padding: 32px 24px; background: var(--ng-surface); }
+    .auth-logo { font-size: 42px; margin-bottom: 8px; }
+    .auth-title { font-size: 28px; font-weight: 700; color: var(--ng-orange); letter-spacing: -0.5px; margin-bottom: 4px; }
+    .auth-sub { font-size: 14px; color: var(--ng-muted); margin-bottom: 36px; text-align: center; }
+    .auth-form { width: 100%; display: flex; flex-direction: column; gap: 12px; }
+    .auth-input { width: 100%; padding: 14px 16px; border: 1.5px solid var(--ng-border); border-radius: var(--ng-radius-sm); font-size: 16px; background: var(--ng-bg); color: var(--ng-text); outline: none; transition: border-color 0.15s; }
+    .auth-input:focus { border-color: var(--ng-orange); }
+    .auth-btn { width: 100%; padding: 15px; background: var(--ng-orange); color: #fff; border: none; border-radius: var(--ng-radius-sm); font-size: 16px; font-weight: 600; cursor: pointer; transition: background 0.15s, transform 0.1s; }
+    .auth-btn:active { background: var(--ng-orange-dark); transform: scale(0.98); }
+    .auth-switch { font-size: 14px; color: var(--ng-muted); text-align: center; margin-top: 8px; }
+    .auth-switch a { color: var(--ng-orange); text-decoration: none; font-weight: 500; cursor: pointer; }
+    .auth-error { font-size: 13px; color: var(--ng-red); background: #FFF0F3; border-radius: var(--ng-radius-sm); padding: 10px 14px; display: none; }
+    .auth-error.show { display: block; }
+    .auth-divider { display: flex; align-items: center; gap: 12px; }
+    .auth-divider-line { flex: 1; height: 1px; background: var(--ng-border); }
+    .auth-divider-text { font-size: 12px; color: var(--ng-subtle); }
+
+    /* ── HEADER ── */
+    .ng-header { background: var(--ng-surface); padding: 14px 18px 12px; border-bottom: 1px solid var(--ng-border); display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 10; }
+    .ng-header-title { font-size: 16px; font-weight: 700; color: var(--ng-orange); letter-spacing: 0.02em; }
+    .ng-icon-btn { background: none; border: none; cursor: pointer; color: var(--ng-muted); font-size: 22px; padding: 4px; border-radius: 8px; display: flex; align-items: center; justify-content: center; transition: background 0.12s; }
+    .ng-icon-btn:active { background: var(--ng-bg); }
+
+    /* ── BODY ── */
+    .ng-body { flex: 1; overflow-y: auto; padding: 16px 18px 100px; display: flex; flex-direction: column; gap: 14px; -webkit-overflow-scrolling: touch; }
+
+    /* ── CARDS ── */
+    .ng-card { background: var(--ng-surface); border-radius: var(--ng-radius); border: 1px solid var(--ng-border); padding: 14px 16px; }
+    .ng-card-label { font-size: 11px; font-weight: 600; color: var(--ng-subtle); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 10px; }
+
+    /* ── WELCOME ── */
+    .ng-welcome-name { font-size: 18px; font-weight: 600; color: var(--ng-text); }
+    .ng-anchor-pill { background: var(--ng-orange-light); border-radius: var(--ng-radius-sm); padding: 8px 12px; margin-top: 8px; font-size: 13px; color: var(--ng-orange-dark); font-style: italic; line-height: 1.5; }
+
+    /* ── WEEK GRID ── */
+    .ng-week-grid { display: flex; gap: 4px; }
+    .ng-day { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+    .ng-day-label { font-size: 10px; color: var(--ng-subtle); font-weight: 500; }
+    .ng-day-bubble { width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 17px; cursor: pointer; transition: transform 0.12s; }
+    .ng-day-bubble:active { transform: scale(0.9); }
+    .ng-day-bubble.done { background: #FFF0EB; }
+    .ng-day-bubble.miss { background: #F5F5F5; font-size: 13px; color: var(--ng-subtle); }
+    .ng-day-bubble.future { background: #F5F5F5; font-size: 13px; color: var(--ng-border); }
+
+    /* ── STREAK + STATS ── */
+    .ng-streak-row { display: flex; align-items: center; gap: 10px; }
+    .ng-streak-num { font-size: 36px; font-weight: 700; color: var(--ng-orange); line-height: 1; }
+    .ng-streak-info { display: flex; flex-direction: column; }
+    .ng-streak-title { font-size: 14px; font-weight: 600; color: var(--ng-text); }
+    .ng-streak-sub { font-size: 12px; color: var(--ng-muted); }
+    .ng-stats-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .ng-stat { background: var(--ng-bg); border-radius: var(--ng-radius-sm); padding: 12px 14px; }
+    .ng-stat-val { font-size: 22px; font-weight: 700; color: var(--ng-text); }
+    .ng-stat-lbl { font-size: 11px; color: var(--ng-muted); margin-top: 2px; }
+
+    /* ── TODAY LOG ── */
+    .ng-log-empty { font-size: 13px; color: var(--ng-subtle); text-align: center; padding: 12px 0; }
+    .ng-log-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--ng-border); }
+    .ng-log-item:last-child { border-bottom: none; }
+    .ng-log-time { font-size: 11px; color: var(--ng-subtle); min-width: 56px; }
+    .ng-log-badge { font-size: 11px; background: var(--ng-orange-light); color: var(--ng-orange-dark); border-radius: 5px; padding: 2px 7px; font-weight: 600; white-space: nowrap; }
+    .ng-log-desc { font-size: 13px; color: var(--ng-text); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ng-log-feel { font-size: 16px; }
+
+    /* ── FAB ── */
+    .ng-fab { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%); width: 58px; height: 58px; border-radius: 50%; background: var(--ng-orange); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 30px; font-weight: 300; box-shadow: 0 4px 18px rgba(255,107,53,0.38); transition: transform 0.15s, box-shadow 0.15s; z-index: 20; }
+    .ng-fab:active { transform: translateX(-50%) scale(0.92); box-shadow: 0 2px 8px rgba(255,107,53,0.25); }
+
+    /* ── LOG FORM ── */
+    .ng-back-btn { background: none; border: none; cursor: pointer; color: var(--ng-orange); font-size: 14px; font-weight: 500; padding: 0; display: flex; align-items: center; gap: 4px; }
+    .ng-form-section { display: flex; flex-direction: column; gap: 6px; }
+    .ng-form-label { font-size: 12px; font-weight: 600; color: var(--ng-muted); text-transform: uppercase; letter-spacing: 0.06em; }
+    .ng-quick-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .ng-quick-btn { background: var(--ng-bg); border: 1.5px solid var(--ng-border); border-radius: var(--ng-radius-sm); padding: 11px 8px; font-size: 13px; font-weight: 600; color: var(--ng-text); cursor: pointer; text-align: center; transition: all 0.12s; }
+    .ng-quick-btn:active, .ng-quick-btn.selected { background: var(--ng-orange-light); border-color: var(--ng-orange); color: var(--ng-orange-dark); }
+    .ng-radio-row { display: flex; gap: 8px; }
+    .ng-radio-btn { flex: 1; padding: 10px; border: 1.5px solid var(--ng-border); border-radius: var(--ng-radius-sm); font-size: 13px; font-weight: 500; text-align: center; cursor: pointer; color: var(--ng-muted); background: var(--ng-bg); transition: all 0.12s; }
+    .ng-radio-btn.active { border-color: var(--ng-orange); color: var(--ng-orange-dark); background: var(--ng-orange-light); font-weight: 600; }
+    .ng-input { width: 100%; padding: 12px 14px; border: 1.5px solid var(--ng-border); border-radius: var(--ng-radius-sm); font-size: 15px; color: var(--ng-text); background: var(--ng-surface); outline: none; transition: border-color 0.15s; }
+    .ng-input:focus { border-color: var(--ng-orange); }
+    .ng-char-count { font-size: 11px; color: var(--ng-subtle); text-align: right; }
+    .ng-emoji-row { display: flex; justify-content: space-between; padding: 4px 8px; }
+    .ng-emoji-btn { font-size: 28px; cursor: pointer; opacity: 0.3; transition: transform 0.12s, opacity 0.12s; background: none; border: none; padding: 4px 6px; border-radius: 10px; }
+    .ng-emoji-btn.selected { opacity: 1; transform: scale(1.3); }
+    .ng-submit-btn { width: 100%; padding: 15px; background: var(--ng-orange); color: #fff; border: none; border-radius: var(--ng-radius-sm); font-size: 16px; font-weight: 600; cursor: pointer; transition: background 0.15s, transform 0.1s; margin-top: 4px; }
+    .ng-submit-btn:active { background: var(--ng-orange-dark); transform: scale(0.98); }
+    .ng-submit-btn:disabled { background: #ccc; cursor: not-allowed; transform: none; }
+    .ng-form-error { font-size: 13px; color: var(--ng-red); padding: 4px 0; display: none; }
+    .ng-form-error.show { display: block; }
+
+    /* ── REWARD OVERLAY ── */
+    #ng-reward { display: none; position: fixed; inset: 0; background: var(--ng-surface); z-index: 50; flex-direction: column; align-items: center; justify-content: center; gap: 16px; text-align: center; padding: 32px 28px; max-width: 430px; margin: 0 auto; }
+    #ng-reward.show { display: flex; }
+    .ng-reward-icon { font-size: 64px; animation: rewardPop 0.4s cubic-bezier(0.175,0.885,0.32,1.275); }
+    @keyframes rewardPop { 0% { transform: scale(0); } 100% { transform: scale(1); } }
+    .ng-reward-phrase { font-size: 20px; font-weight: 700; color: var(--ng-text); line-height: 1.4; }
+    .ng-reward-detail { font-size: 14px; color: var(--ng-muted); }
+    .ng-reward-tier { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; padding: 4px 12px; border-radius: 20px; }
+    .ng-reward-tier.common { background: #F0F0F0; color: var(--ng-muted); }
+    .ng-reward-tier.energetic { background: #FFF0EB; color: var(--ng-orange-dark); }
+    .ng-reward-tier.legendary { background: linear-gradient(135deg, #FFD700, #FF6B35); color: #fff; }
+    .ng-reward-back { width: 100%; padding: 15px; background: var(--ng-orange); color: #fff; border: none; border-radius: var(--ng-radius-sm); font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 8px; }
+
+    /* ── CONFETTI ── */
+    .ng-confetti { position: fixed; pointer-events: none; z-index: 60; }
+    @keyframes confettiFall { 0% { transform: translateY(-20px) rotate(0deg); opacity: 1; } 100% { transform: translateY(110vh) rotate(900deg); opacity: 0; } }
+
+    /* ── SETTINGS SCREEN ── */
+    .ng-settings-section { display: flex; flex-direction: column; gap: 8px; }
+    .ng-settings-row { background: var(--ng-surface); border-radius: var(--ng-radius-sm); border: 1px solid var(--ng-border); padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; }
+    .ng-settings-label { font-size: 12px; font-weight: 600; color: var(--ng-muted); text-transform: uppercase; letter-spacing: 0.06em; }
+    .ng-settings-save { width: 100%; padding: 14px; background: var(--ng-orange); color: #fff; border: none; border-radius: var(--ng-radius-sm); font-size: 15px; font-weight: 600; cursor: pointer; transition: background 0.15s; }
+    .ng-settings-save:active { background: var(--ng-orange-dark); }
+    .ng-logout-btn { width: 100%; padding: 14px; background: #fff; color: #DC2626; border: 1.5px solid #DC2626; border-radius: var(--ng-radius-sm); font-size: 15px; font-weight: 600; cursor: pointer; transition: background 0.15s; }
+    .ng-logout-btn:active { background: #FEF2F2; }
+    .ng-success-msg { font-size: 13px; color: var(--ng-green); padding: 4px 0; display: none; }
+    .ng-success-msg.show { display: block; }
+
+    /* ── EXPORT ── */
+    .ng-export-btn { width: 100%; padding: 14px; background: var(--ng-bg); color: var(--ng-text); border: 1.5px solid var(--ng-border); border-radius: var(--ng-radius-sm); font-size: 15px; font-weight: 600; cursor: pointer; transition: background 0.15s; }
+    .ng-export-btn:active { background: #eee; }
+
+    /* ── HISTORY MODAL ── */
+    #history-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 40; align-items: flex-end; max-width: 430px; margin: 0 auto; }
+    #history-modal.show { display: flex; }
+    .history-sheet { background: var(--ng-surface); border-radius: 20px 20px 0 0; padding: 20px 18px 40px; width: 100%; max-height: 70vh; overflow-y: auto; }
+    .history-handle { width: 40px; height: 4px; background: var(--ng-border); border-radius: 2px; margin: 0 auto 16px; }
+    .history-title { font-size: 16px; font-weight: 700; color: var(--ng-text); margin-bottom: 14px; }
+    .history-item { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--ng-border); }
+    .history-item:last-child { border-bottom: none; }
+    .history-date { font-size: 11px; color: var(--ng-subtle); min-width: 100px; line-height: 1.4; }
+    .history-badge { font-size: 11px; background: var(--ng-orange-light); color: var(--ng-orange-dark); border-radius: 5px; padding: 2px 7px; font-weight: 600; white-space: nowrap; }
+    .history-desc { font-size: 13px; color: var(--ng-text); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .history-feel { font-size: 16px; }
+    .history-empty { font-size: 14px; color: var(--ng-subtle); text-align: center; padding: 24px 0; }
+
+    /* ── LOADER ── */
+    #app-loader { position: fixed; inset: 0; background: var(--ng-surface); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; z-index: 100; }
+    .loader-logo { font-size: 48px; }
+    .loader-title { font-size: 24px; font-weight: 700; color: var(--ng-orange); }
+    .loader-dot-row { display: flex; gap: 6px; }
+    .loader-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ng-orange); opacity: 0.3; animation: loaderPulse 1s ease-in-out infinite; }
+    .loader-dot:nth-child(2) { animation-delay: 0.15s; }
+    .loader-dot:nth-child(3) { animation-delay: 0.3s; }
+    @keyframes loaderPulse { 0%,100% { opacity: 0.3; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.1); } }
+  </style>
+</head>
+<body>
+
+<div id="app">
+
+  <!-- LOADER -->
+  <div id="app-loader">
+    <div class="loader-logo">🔥</div>
+    <div class="loader-title">Nuggercise</div>
+    <div class="loader-dot-row">
+      <div class="loader-dot"></div>
+      <div class="loader-dot"></div>
+      <div class="loader-dot"></div>
+    </div>
+  </div>
+
+  <!-- AUTH SCREEN -->
+  <div id="screen-auth" class="screen">
+    <div class="auth-logo">🔥</div>
+    <div class="auth-title">Nuggercise</div>
+    <div class="auth-sub" id="auth-sub">Tiny moves. Massive streaks.</div>
+    <div class="auth-form">
+      <div class="auth-error" id="auth-error"></div>
+      <div id="signup-fields" style="display:none; flex-direction:column; gap:12px;">
+        <input class="auth-input" type="text" id="auth-nickname" placeholder="Your nickname (e.g. Champ)" maxlength="50" autocomplete="off" />
+        <input class="auth-input" type="text" id="auth-anchor" placeholder="Habit anchor: When I... I do..." maxlength="100" autocomplete="off" />
+      </div>
+      <input class="auth-input" type="email" id="auth-email" placeholder="Email address" autocomplete="email" />
+      <input class="auth-input" type="password" id="auth-password" placeholder="Password" autocomplete="current-password" />
+      <button class="auth-btn" id="auth-btn" onclick="handleAuth()">Log in</button>
+      <div class="auth-switch" id="auth-switch">
+        No account? <a onclick="toggleAuthMode()">Sign up free</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- DASHBOARD SCREEN -->
+  <div id="screen-dashboard" class="screen">
+    <div class="ng-header">
+      <span class="ng-header-title">🔥 NUGGERCISE</span>
+      <button class="ng-icon-btn" onclick="showScreen('screen-settings')" aria-label="Settings">⚙️</button>
+    </div>
+    <div class="ng-body">
+      <div class="ng-card">
+        <div class="ng-welcome-name" id="dash-welcome">Welcome back! 👋</div>
+        <div class="ng-anchor-pill" id="dash-anchor" style="display:none"></div>
+      </div>
+      <div class="ng-card">
+        <div class="ng-card-label">7-Day Progress</div>
+        <div class="ng-week-grid" id="week-grid"></div>
+      </div>
+      <div class="ng-card">
+        <div class="ng-streak-row">
+          <div class="ng-streak-num" id="streak-num">0</div>
+          <div class="ng-streak-info">
+            <div class="ng-streak-title">day streak 🔥</div>
+            <div class="ng-streak-sub" id="streak-sub">Log today to start!</div>
+          </div>
+        </div>
+      </div>
+      <div class="ng-stats-grid">
+        <div class="ng-stat">
+          <div class="ng-stat-val" id="stat-reps">0</div>
+          <div class="ng-stat-lbl">reps this week</div>
+        </div>
+        <div class="ng-stat">
+          <div class="ng-stat-val" id="stat-mins">0</div>
+          <div class="ng-stat-lbl">minutes this week</div>
+        </div>
+      </div>
+      <div class="ng-card">
+        <div class="ng-card-label">Today's Momentum</div>
+        <div id="today-log"><div class="ng-log-empty">Nothing yet — tap + to log your first nugget!</div></div>
+      </div>
+    </div>
+    <button class="ng-fab" onclick="showScreen('screen-log')" aria-label="Log exercise">+</button>
+  </div>
+
+  <!-- LOG SCREEN -->
+  <div id="screen-log" class="screen">
+    <div class="ng-header">
+      <button class="ng-back-btn" onclick="showScreen('screen-dashboard')">← Back</button>
+      <span style="font-size:14px;font-weight:600;color:var(--ng-text)">Log Nuggercise</span>
+    </div>
+    <div class="ng-body">
+      <div class="ng-form-section">
+        <div class="ng-form-label">Quick Nugget Menu</div>
+        <div class="ng-quick-grid">
+          <button class="ng-quick-btn" onclick="quickFill(this,'reps',20,'20 Squats')">🦵 20 Squats</button>
+          <button class="ng-quick-btn" onclick="quickFill(this,'minutes',1,'1 Min Plank')">⏱ 1 Min Plank</button>
+          <button class="ng-quick-btn" onclick="quickFill(this,'reps',15,'15 Pushups')">💪 15 Pushups</button>
+          <button class="ng-quick-btn" onclick="quickFill(this,'minutes',2,'Desk Stretch')">🙆 Desk Stretch</button>
+        </div>
+      </div>
+      <div class="ng-form-section">
+        <div class="ng-form-label">Date &amp; Time</div>
+        <input class="ng-input" type="datetime-local" id="log-datetime" />
+      </div>
+      <div class="ng-form-section">
+        <div class="ng-form-label">Type</div>
+        <div class="ng-radio-row">
+          <div class="ng-radio-btn active" id="type-reps" onclick="setType('reps')">Reps</div>
+          <div class="ng-radio-btn" id="type-mins" onclick="setType('minutes')">Minutes</div>
+        </div>
+      </div>
+      <div class="ng-form-section">
+        <div class="ng-form-label">Value</div>
+        <input class="ng-input" type="text" inputmode="numeric" pattern="[0-9]*" id="log-value" placeholder="e.g. 20" maxlength="5" oninput="sanitizeNum(this)" />
+        <div class="ng-form-error" id="err-value">Please enter a number between 1 and 10,000.</div>
+      </div>
+      <div class="ng-form-section">
+        <div class="ng-form-label">Description <span style="font-weight:400;text-transform:none;font-size:11px">(max 250 chars)</span></div>
+        <input class="ng-input" type="text" id="log-desc" placeholder="e.g. 20 Squats" maxlength="250" oninput="updateCharCount()" />
+        <div class="ng-char-count"><span id="char-count">0</span>/250</div>
+      </div>
+      <div class="ng-form-section">
+        <div class="ng-form-label">How did it feel?</div>
+        <div class="ng-emoji-row" id="emoji-row">
+          <button class="ng-emoji-btn" data-val="1" onclick="selectFeeling(this)" aria-label="Poor">😞</button>
+          <button class="ng-emoji-btn" data-val="2" onclick="selectFeeling(this)" aria-label="Okay">😐</button>
+          <button class="ng-emoji-btn" data-val="3" onclick="selectFeeling(this)" aria-label="Good">🙂</button>
+          <button class="ng-emoji-btn" data-val="4" onclick="selectFeeling(this)" aria-label="Great">😁</button>
+          <button class="ng-emoji-btn" data-val="5" onclick="selectFeeling(this)" aria-label="Amazing">🤩</button>
+        </div>
+        <div class="ng-form-error" id="err-feeling">Please select how it felt.</div>
+      </div>
+      <button class="ng-submit-btn" id="submit-btn" onclick="submitLog()">Log It! 🔥</button>
+    </div>
+  </div>
+
+  <!-- SETTINGS SCREEN -->
+  <div id="screen-settings" class="screen">
+    <div class="ng-header">
+      <button class="ng-back-btn" onclick="showScreen('screen-dashboard')">← Back</button>
+      <span style="font-size:14px;font-weight:600;color:var(--ng-text)">Settings</span>
+    </div>
+    <div class="ng-body">
+      <div class="ng-settings-section">
+        <div class="ng-card-label">Your Profile</div>
+        <div class="ng-settings-row">
+          <div class="ng-settings-label">Nickname</div>
+          <input class="ng-input" type="text" id="settings-nickname" placeholder="Your name" maxlength="50" />
+        </div>
+        <div class="ng-settings-row">
+          <div class="ng-settings-label">Habit Anchor</div>
+          <input class="ng-input" type="text" id="settings-anchor" placeholder='e.g. "When I close my laptop, I do 10 squats"' maxlength="100" />
+          <div style="font-size:12px;color:var(--ng-muted);line-height:1.5">Shown on your dashboard every day as your behavioral compass.</div>
+        </div>
+        <div class="ng-success-msg" id="settings-success">✓ Profile saved!</div>
+        <button class="ng-settings-save" onclick="saveProfile()">Save Profile</button>
+      </div>
+      <div class="ng-settings-section" style="margin-top:8px">
+        <div class="ng-card-label">Your Data</div>
+        <button class="ng-export-btn" onclick="exportCSV()">⬇ Export Logs as CSV</button>
+      </div>
+      <div class="ng-settings-section" style="margin-top:8px">
+        <button class="ng-logout-btn" onclick="handleLogout()">Log Out</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- REWARD OVERLAY -->
+  <div id="ng-reward" role="alert" aria-live="assertive"></div>
+
+  <!-- HISTORY MODAL -->
+  <div id="history-modal" onclick="closeHistory(event)">
+    <div class="history-sheet">
+      <div class="history-handle"></div>
+      <div class="history-title">Full Log History</div>
+      <div id="history-list"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Supabase SDK -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+// ─────────────────────────────────────────
+// CONFIG — your project credentials
+// ─────────────────────────────────────────
+const SUPABASE_URL = 'https://iliajkjokfgudsqlskvs.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_uouHgaK4VycAnc2wO0wUfw_0lpYXNGG';
+
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: { persistSession: true, autoRefreshToken: true }
+});
+
+// ─────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────
+let currentUser = null;
+let currentProfile = null;
+let allPhrases = { common: [], energetic: [], legendary: [] };
+let selectedFeeling = 0;
+let selectedType = 'reps';
+let isSignup = false;
+let weekLogs = [];
+
+// ─────────────────────────────────────────
+// BOOT
+// ─────────────────────────────────────────
+async function boot() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) {
+    currentUser = session.user;
+    await loadApp();
+  } else {
+    hideLoader();
+    showScreen('screen-auth');
+  }
+  sb.auth.onAuthStateChange(async (event, session) => {
+    if (event === 'SIGNED_IN' && session) {
+      currentUser = session.user;
+      await loadApp();
+    } else if (event === 'SIGNED_OUT') {
+      currentUser = null;
+      currentProfile = null;
+      showScreen('screen-auth');
+    }
+  });
+}
+
+async function loadApp() {
+  await Promise.all([loadProfile(), loadPhrases()]);
+  await refreshDashboard();
+  hideLoader();
+  showScreen('screen-dashboard');
+}
+
+function hideLoader() {
+  const el = document.getElementById('app-loader');
+  if (el) el.style.display = 'none';
+}
+
+// ─────────────────────────────────────────
+// AUTH
+// ─────────────────────────────────────────
+function toggleAuthMode() {
+  isSignup = !isSignup;
+  const signupFields = document.getElementById('signup-fields');
+  const btn = document.getElementById('auth-btn');
+  const sw = document.getElementById('auth-switch');
+  const sub = document.getElementById('auth-sub');
+  if (isSignup) {
+    signupFields.style.display = 'flex';
+    btn.textContent = 'Create Account';
+    sw.innerHTML = 'Already have an account? <a onclick="toggleAuthMode()">Log in</a>';
+    sub.textContent = 'Build tiny habits. Build a better you.';
+  } else {
+    signupFields.style.display = 'none';
+    btn.textContent = 'Log in';
+    sw.innerHTML = 'No account? <a onclick="toggleAuthMode()">Sign up free</a>';
+    sub.textContent = 'Tiny moves. Massive streaks.';
+  }
+  setAuthError('');
+}
+
+function setAuthError(msg) {
+  const el = document.getElementById('auth-error');
+  el.textContent = msg;
+  el.classList.toggle('show', !!msg);
+}
+
+async function handleAuth() {
+  const email = document.getElementById('auth-email').value.trim();
+  const password = document.getElementById('auth-password').value;
+  const btn = document.getElementById('auth-btn');
+  if (!email || !password) { setAuthError('Please enter your email and password.'); return; }
+  btn.disabled = true;
+  btn.textContent = isSignup ? 'Creating...' : 'Logging in...';
+  setAuthError('');
+  if (isSignup) {
+    const nickname = document.getElementById('auth-nickname').value.trim();
+    const anchor = document.getElementById('auth-anchor').value.trim();
+    if (!nickname) { setAuthError('Please enter a nickname.'); btn.disabled = false; btn.textContent = 'Create Account'; return; }
+    const { data, error } = await sb.auth.signUp({ email, password });
+    if (error) { setAuthError(error.message); btn.disabled = false; btn.textContent = 'Create Account'; return; }
+    if (data.user) {
+      await sb.from('profiles').upsert({ id: data.user.id, nickname, habit_anchor: anchor || null });
+    }
+  } else {
+    const { error } = await sb.auth.signInWithPassword({ email, password });
+    if (error) { setAuthError('Incorrect email or password.'); btn.disabled = false; btn.textContent = 'Log in'; return; }
+  }
+  btn.disabled = false;
+}
+
+async function handleLogout() {
+  await sb.auth.signOut();
+  localStorage.clear();
+  window.location.replace(window.location.pathname);
+}
+
+// ─────────────────────────────────────────
+// PROFILE
+// ─────────────────────────────────────────
+async function loadProfile() {
+  const { data } = await sb.from('profiles').select('*').eq('id', currentUser.id).single();
+  currentProfile = data;
+  if (data) {
+    document.getElementById('settings-nickname').value = data.nickname || '';
+    document.getElementById('settings-anchor').value = data.habit_anchor || '';
+  }
+}
+
+async function saveProfile() {
+  const nickname = document.getElementById('settings-nickname').value.trim();
+  const anchor = document.getElementById('settings-anchor').value.trim();
+  if (!nickname) return;
+  const { error } = await sb.from('profiles').upsert({ id: currentUser.id, nickname, habit_anchor: anchor || null, updated_at: new Date().toISOString() });
+  if (!error) {
+    currentProfile = { ...currentProfile, nickname, habit_anchor: anchor };
+    updateWelcome();
+    const msg = document.getElementById('settings-success');
+    msg.classList.add('show');
+    setTimeout(() => msg.classList.remove('show'), 2500);
+  }
+}
+
+function updateWelcome() {
+  if (!currentProfile) return;
+  const name = currentProfile.nickname || 'Champ';
+  // Use textContent — never innerHTML — to prevent XSS
+  document.getElementById('dash-welcome').textContent = 'Welcome back, ' + name + ' 👋';
+  const anchorEl = document.getElementById('dash-anchor');
+  if (currentProfile.habit_anchor) {
+    anchorEl.textContent = '"' + currentProfile.habit_anchor + '"';
+    anchorEl.style.display = 'block';
+  } else {
+    anchorEl.style.display = 'none';
+  }
+}
+
+// ─────────────────────────────────────────
+// PHRASES
+// ─────────────────────────────────────────
+async function loadPhrases() {
+  const { data } = await sb.from('app_congratulations').select('phrase, rarity_tier');
+  if (data) {
+    allPhrases = { common: [], energetic: [], legendary: [] };
+    data.forEach(row => {
+      if (allPhrases[row.rarity_tier]) allPhrases[row.rarity_tier].push(row.phrase);
+    });
+  }
+}
+
+function pickPhrase() {
+  const roll = Math.random();
+  let tier = roll < 0.05 ? 'legendary' : roll < 0.25 ? 'energetic' : 'common';
+  const pool = allPhrases[tier];
+  if (!pool || !pool.length) tier = 'common';
+  const finalPool = allPhrases[tier].length ? allPhrases[tier] : ['Great work! Keep going!'];
+  return { phrase: finalPool[Math.floor(Math.random() * finalPool.length)], tier };
+}
+
+// ─────────────────────────────────────────
+// DASHBOARD
+// ─────────────────────────────────────────
+async function refreshDashboard() {
+  updateWelcome();
+  const now = new Date();
+  const sevenDaysAgo = new Date(now);
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+  sevenDaysAgo.setHours(0, 0, 0, 0);
+
+  const { data: logs } = await sb
+    .from('nuggercises')
+    .select('*')
+    .eq('user_id', currentUser.id)
+    .gte('logged_at', sevenDaysAgo.toISOString())
+    .order('logged_at', { ascending: false });
+
+  weekLogs = logs || [];
+  buildWeekGrid(weekLogs);
+  buildStreak(weekLogs);
+  buildStats(weekLogs);
+  buildTodayLog(weekLogs);
+}
+
+function buildWeekGrid(logs) {
+  const grid = document.getElementById('week-grid');
+  grid.innerHTML = '';
+  const days = ['M','T','W','T','F','S','S'];
+  const now = new Date();
+  const todayDay = now.getDay();
+  const mondayOffset = (todayDay === 0) ? 6 : todayDay - 1;
+
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(now);
+    d.setDate(now.getDate() - mondayOffset + i);
+    d.setHours(0,0,0,0);
+    const dEnd = new Date(d); dEnd.setHours(23,59,59,999);
+    const isFuture = d > now;
+    const isToday = d.toDateString() === now.toDateString();
+    const hasLog = logs.some(l => { const ld = new Date(l.logged_at); return ld >= d && ld <= dEnd; });
+
+    const col = document.createElement('div');
+    col.className = 'ng-day';
+    const lbl = document.createElement('div');
+    lbl.className = 'ng-day-label';
+    lbl.textContent = days[i];
+    const bubble = document.createElement('div');
+    bubble.className = 'ng-day-bubble';
+    if (isFuture) { bubble.classList.add('future'); bubble.textContent = '·'; }
+    else if (hasLog) { bubble.classList.add('done'); bubble.textContent = '🔥'; }
+    else { bubble.classList.add('miss'); bubble.textContent = isToday ? '📊' : '❌'; }
+    if (hasLog || !isFuture) {
+      bubble.onclick = () => openHistory(d);
+      bubble.title = 'View logs for this day';
+    }
+    col.appendChild(lbl); col.appendChild(bubble);
+    grid.appendChild(col);
+  }
+}
+
+function buildStreak(logs) {
+  let streak = 0;
+  const now = new Date();
+  for (let i = 0; i <= 365; i++) {
+    const d = new Date(now);
+    d.setDate(now.getDate() - i);
+    d.setHours(0,0,0,0);
+    const dEnd = new Date(d); dEnd.setHours(23,59,59,999);
+    const hasLog = logs.some(l => { const ld = new Date(l.logged_at); return ld >= d && ld <= dEnd; });
+    if (i === 0 && !hasLog) { streak = 0; break; }
+    if (hasLog) streak++;
+    else break;
+  }
+  document.getElementById('streak-num').textContent = streak;
+  const sub = document.getElementById('streak-sub');
+  if (streak === 0) sub.textContent = 'Log today to start your streak!';
+  else if (streak === 1) sub.textContent = 'Day 1 — keep going tomorrow!';
+  else sub.textContent = streak + ' days in a row — don\'t stop now!';
+}
+
+function buildStats(logs) {
+  let totalReps = 0, totalMins = 0;
+  logs.forEach(l => {
+    if (l.metric_type === 'reps') totalReps += l.metric_value;
+    else totalMins += l.metric_value;
+  });
+  document.getElementById('stat-reps').textContent = totalReps;
+  document.getElementById('stat-mins').textContent = totalMins;
+}
+
+function buildTodayLog(logs) {
+  const container = document.getElementById('today-log');
+  const now = new Date();
+  const todayStart = new Date(now); todayStart.setHours(0,0,0,0);
+  const todayLogs = logs.filter(l => new Date(l.logged_at) >= todayStart);
+  if (!todayLogs.length) {
+    container.innerHTML = '';
+    const empty = document.createElement('div');
+    empty.className = 'ng-log-empty';
+    empty.textContent = 'Nothing yet — tap + to log your first nugget!';
+    container.appendChild(empty);
+    return;
+  }
+  container.innerHTML = '';
+  const FEELINGS = ['','😞','😐','🙂','😁','🤩'];
+  todayLogs.forEach(l => {
+    const item = document.createElement('div');
+    item.className = 'ng-log-item';
+    const time = document.createElement('div');
+    time.className = 'ng-log-time';
+    time.textContent = new Date(l.logged_at).toLocaleTimeString('en-SG', { hour:'2-digit', minute:'2-digit', hour12:true });
+    const badge = document.createElement('div');
+    badge.className = 'ng-log-badge';
+    badge.textContent = l.metric_value + (l.metric_type === 'reps' ? ' Reps' : ' Min');
+    const desc = document.createElement('div');
+    desc.className = 'ng-log-desc';
+    desc.textContent = l.description || '—'; // textContent = safe, no XSS possible
+    const feel = document.createElement('div');
+    feel.className = 'ng-log-feel';
+    feel.textContent = FEELINGS[l.feeling_rating] || '';
+    item.appendChild(time); item.appendChild(badge); item.appendChild(desc); item.appendChild(feel);
+    container.appendChild(item);
+  });
+}
+
+// ─────────────────────────────────────────
+// HISTORY MODAL
+// ─────────────────────────────────────────
+async function openHistory(dayDate) {
+  const { data: logs } = await sb
+    .from('nuggercises')
+    .select('*')
+    .eq('user_id', currentUser.id)
+    .order('logged_at', { ascending: false });
+
+  const list = document.getElementById('history-list');
+  list.innerHTML = '';
+  const FEELINGS = ['','😞','😐','🙂','😁','🤩'];
+  const allLogs = logs || [];
+  if (!allLogs.length) {
+    const empty = document.createElement('div');
+    empty.className = 'history-empty';
+    empty.textContent = 'No logs yet. Start by tapping +!';
+    list.appendChild(empty);
+  } else {
+    allLogs.forEach(l => {
+      const item = document.createElement('div');
+      item.className = 'history-item';
+      const dateStr = new Date(l.logged_at).toLocaleString('en-SG', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit', hour12:true });
+      const dateEl = document.createElement('div'); dateEl.className = 'history-date'; dateEl.textContent = dateStr;
+      const badge = document.createElement('div'); badge.className = 'history-badge'; badge.textContent = l.metric_value + (l.metric_type === 'reps' ? ' Reps' : ' Min');
+      const desc = document.createElement('div'); desc.className = 'history-desc'; desc.textContent = l.description || '—';
+      const feel = document.createElement('div'); feel.className = 'history-feel'; feel.textContent = FEELINGS[l.feeling_rating] || '';
+      item.appendChild(dateEl); item.appendChild(badge); item.appendChild(desc); item.appendChild(feel);
+      list.appendChild(item);
+    });
+  }
+  document.getElementById('history-modal').classList.add('show');
+}
+
+function closeHistory(e) {
+  if (e.target === document.getElementById('history-modal')) {
+    document.getElementById('history-modal').classList.remove('show');
+  }
+}
+
+// ─────────────────────────────────────────
+// LOG FORM
+// ─────────────────────────────────────────
+function initLogForm() {
+  const now = new Date();
+  now.setSeconds(0, 0);
+  const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+  const minDate = new Date(now.getTime() - 48 * 60 * 60 * 1000);
+  const minLocal = new Date(minDate.getTime() - minDate.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+  const dtInput = document.getElementById('log-datetime');
+  dtInput.value = local;
+  dtInput.max = local;
+  dtInput.min = minLocal;
+  selectedFeeling = 0;
+  selectedType = 'reps';
+  document.querySelectorAll('.ng-quick-btn').forEach(b => b.classList.remove('selected'));
+  document.getElementById('log-value').value = '';
+  document.getElementById('log-desc').value = '';
+  document.getElementById('char-count').textContent = '0';
+  document.querySelectorAll('.ng-emoji-btn').forEach(b => b.classList.remove('selected'));
+  setType('reps');
+  document.getElementById('err-value').classList.remove('show');
+  document.getElementById('err-feeling').classList.remove('show');
+  document.getElementById('submit-btn').disabled = false;
+}
+
+function quickFill(btn, type, value, desc) {
+  document.querySelectorAll('.ng-quick-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  setType(type);
+  document.getElementById('log-value').value = value;
+  const descInput = document.getElementById('log-desc');
+  descInput.value = '';
+  const chars = [...desc];
+  chars.forEach((c, i) => setTimeout(() => {
+    descInput.value += c;
+    document.getElementById('char-count').textContent = descInput.value.length;
+  }, i * 30));
+}
+
+function setType(t) {
+  selectedType = t;
+  document.getElementById('type-reps').classList.toggle('active', t === 'reps');
+  document.getElementById('type-mins').classList.toggle('active', t === 'minutes');
+}
+
+function selectFeeling(btn) {
+  selectedFeeling = parseInt(btn.dataset.val);
+  document.querySelectorAll('.ng-emoji-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  document.getElementById('err-feeling').classList.remove('show');
+}
+
+function sanitizeNum(el) {
+  el.value = el.value.replace(/[^0-9]/g, '').slice(0, 5);
+  if (parseInt(el.value) > 10000) el.value = '10000';
+}
+
+function updateCharCount() {
+  const val = document.getElementById('log-desc').value;
+  document.getElementById('char-count').textContent = val.length;
+}
+
+async function submitLog() {
+  const valRaw = document.getElementById('log-value').value.trim();
+  const val = parseInt(valRaw);
+  const desc = document.getElementById('log-desc').value.trim();
+  const datetimeVal = document.getElementById('log-datetime').value;
+
+  // Validate
+  let hasError = false;
+  if (!valRaw || isNaN(val) || val < 1 || val > 10000) {
+    document.getElementById('err-value').classList.add('show');
+    hasError = true;
+  } else {
+    document.getElementById('err-value').classList.remove('show');
+  }
+  if (!selectedFeeling) {
+    document.getElementById('err-feeling').classList.add('show');
+    hasError = true;
+  }
+  if (hasError) return;
+
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true;
+  btn.textContent = 'Logging...';
+
+  // Safe text-node approach — description is stored as plain text, never rendered as HTML
+  const loggedAt = new Date(datetimeVal).toISOString();
+  const { error } = await sb.from('nuggercises').insert({
+    user_id: currentUser.id,
+    logged_at: loggedAt,
+    metric_type: selectedType,
+    metric_value: val,
+    description: desc.slice(0, 250) || null,
+    feeling_rating: selectedFeeling
+  });
+
+  if (error) {
+    btn.disabled = false;
+    btn.textContent = 'Log It! 🔥';
+    if (error.message.includes('logged_at')) {
+      document.getElementById('err-value').textContent = 'Date must be within the last 48 hours.';
+      document.getElementById('err-value').classList.add('show');
+    }
+    return;
+  }
+
+  // Refresh data silently
+  await refreshDashboard();
+
+  // Show reward
+  const { phrase, tier } = pickPhrase();
+  showReward(phrase, tier, val, selectedType, desc);
+  btn.disabled = false;
+  btn.textContent = 'Log It! 🔥';
+}
+
+// ─────────────────────────────────────────
+// REWARD
+// ─────────────────────────────────────────
+const TIER_ICONS = { common: '✅', energetic: '⚡', legendary: '🏆' };
+const TIER_LABELS = { common: 'Logged', energetic: 'Energetic!', legendary: '★ Legendary!' };
+
+function showReward(phrase, tier, val, type, desc) {
+  const reward = document.getElementById('ng-reward');
+  reward.innerHTML = '';
+
+  const iconEl = document.createElement('div'); iconEl.className = 'ng-reward-icon'; iconEl.textContent = TIER_ICONS[tier];
+  const tierBadge = document.createElement('div'); tierBadge.className = 'ng-reward-tier ' + tier; tierBadge.textContent = TIER_LABELS[tier];
+  const phraseEl = document.createElement('div'); phraseEl.className = 'ng-reward-phrase'; phraseEl.textContent = phrase;
+  const detailEl = document.createElement('div'); detailEl.className = 'ng-reward-detail';
+  const detailText = document.createTextNode(val + (type === 'reps' ? ' reps' : ' min') + (desc ? ' — ' + desc : ''));
+  detailEl.appendChild(detailText); // Safe text node — XSS immune
+  const backBtn = document.createElement('button'); backBtn.className = 'ng-reward-back'; backBtn.textContent = 'Back to Dashboard 🔥';
+  backBtn.onclick = () => { reward.classList.remove('show'); showScreen('screen-dashboard'); };
+
+  reward.appendChild(iconEl); reward.appendChild(tierBadge); reward.appendChild(phraseEl); reward.appendChild(detailEl); reward.appendChild(backBtn);
+  reward.classList.add('show');
+
+  if (tier === 'legendary') launchConfetti();
+}
+
+function launchConfetti() {
+  const colors = ['#FF6B35','#06D6A0','#FFD166','#EF476F','#118AB2','#FFD700'];
+  const shapes = ['circle', 'square'];
+  for (let i = 0; i < 60; i++) {
+    const el = document.createElement('div');
+    el.className = 'ng-confetti';
+    const size = 6 + Math.random() * 8;
+    const shape = shapes[Math.floor(Math.random() * shapes.length)];
+    el.style.cssText = [
+      'left:' + Math.random() * 100 + 'vw',
+      'top:-20px',
+      'width:' + size + 'px',
+      'height:' + size + 'px',
+      'background:' + colors[i % colors.length],
+      'border-radius:' + (shape === 'circle' ? '50%' : '2px'),
+      'animation: confettiFall ' + (0.8 + Math.random() * 1.5) + 's ease-in ' + (Math.random() * 0.6) + 's forwards'
+    ].join(';');
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 3000);
+  }
+}
+
+// ─────────────────────────────────────────
+// EXPORT CSV
+// ─────────────────────────────────────────
+async function exportCSV() {
+  const { data: logs } = await sb
+    .from('nuggercises')
+    .select('*')
+    .eq('user_id', currentUser.id)
+    .order('logged_at', { ascending: false });
+
+  if (!logs || !logs.length) { alert('No logs to export yet!'); return; }
+  const headers = ['Date/Time (SGT)', 'Type', 'Value', 'Description', 'Feeling (1-5)'];
+  const rows = logs.map(l => [
+    new Date(l.logged_at).toLocaleString('en-SG', { timeZone: 'Asia/Singapore' }),
+    l.metric_type,
+    l.metric_value,
+    (l.description || '').replace(/,/g, ' '),
+    l.feeling_rating
+  ]);
+  const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'nuggercise_logs.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// ─────────────────────────────────────────
+// SCREEN ROUTER
+// ─────────────────────────────────────────
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  if (id === 'screen-log') initLogForm();
+  window.scrollTo(0, 0);
+}
+
+// ─────────────────────────────────────────
+// BOOT
+// ─────────────────────────────────────────
+boot();
+</script>
+</body>
+</html>
