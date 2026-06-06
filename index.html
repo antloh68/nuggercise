@@ -48,6 +48,17 @@
     .auth-divider { display: flex; align-items: center; gap: 12px; }
     .auth-divider-line { flex: 1; height: 1px; background: var(--ng-border); }
     .auth-divider-text { font-size: 12px; color: var(--ng-subtle); }
+    .auth-pw-wrap { position: relative; width: 100%; }
+    .auth-pw-wrap .auth-input { padding-right: 48px; }
+    .auth-pw-toggle { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; font-size: 18px; color: var(--ng-subtle); padding: 4px; line-height: 1; }
+    .auth-verify { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 14px; padding: 8px 0; }
+    .auth-verify-icon { font-size: 52px; }
+    .auth-verify-title { font-size: 20px; font-weight: 700; color: var(--ng-text); }
+    .auth-verify-sub { font-size: 14px; color: var(--ng-muted); line-height: 1.6; }
+    .auth-verify-email { font-weight: 600; color: var(--ng-orange); }
+    .auth-verify-note { font-size: 12px; color: var(--ng-subtle); background: var(--ng-bg); border-radius: var(--ng-radius-sm); padding: 10px 14px; line-height: 1.6; width: 100%; text-align: left; }
+    .auth-resend { font-size: 13px; color: var(--ng-muted); }
+    .auth-resend a { color: var(--ng-orange); text-decoration: none; font-weight: 500; cursor: pointer; }
 
     /* ── HEADER ── */
     .ng-header { background: var(--ng-surface); padding: 14px 18px 12px; border-bottom: 1px solid var(--ng-border); display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 10; }
@@ -147,12 +158,32 @@
     .ng-settings-save:active { background: var(--ng-orange-dark); }
     .ng-logout-btn { width: 100%; padding: 14px; background: #fff; color: #DC2626; border: 1.5px solid #DC2626; border-radius: var(--ng-radius-sm); font-size: 15px; font-weight: 600; cursor: pointer; transition: background 0.15s; }
     .ng-logout-btn:active { background: #FEF2F2; }
+    /* ── DANGER ZONE ── */
+    .ng-danger-box { background: #FEF2F2; border: 1.5px solid #FECACA; border-radius: var(--ng-radius-sm); padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+    .ng-danger-title { font-size: 14px; font-weight: 700; color: #DC2626; }
+    .ng-danger-desc { font-size: 12px; color: #B91C1C; line-height: 1.5; }
+    .ng-danger-trigger-btn { width: 100%; padding: 11px; background: #fff; color: #DC2626; border: 1.5px solid #DC2626; border-radius: var(--ng-radius-sm); font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.15s; }
+    .ng-danger-trigger-btn:active { background: #FEF2F2; }
+    .ng-danger-warn { font-size: 12px; color: #B91C1C; background: #FEE2E2; border-radius: 7px; padding: 10px 12px; line-height: 1.5; }
+    .ng-danger-confirm { display: flex; flex-direction: column; gap: 10px; }
+    .ng-danger-error { font-size: 12px; color: #DC2626; padding: 2px 0; }
+    .ng-danger-cancel-btn { flex: 1; padding: 11px; background: #fff; color: var(--ng-muted); border: 1.5px solid var(--ng-border); border-radius: var(--ng-radius-sm); font-size: 14px; font-weight: 600; cursor: pointer; }
+    .ng-danger-confirm-btn { flex: 1; padding: 11px; background: #DC2626; color: #fff; border: none; border-radius: var(--ng-radius-sm); font-size: 14px; font-weight: 600; cursor: pointer; transition: opacity 0.15s; }
+    .ng-danger-confirm-btn:disabled { background: #ccc; cursor: not-allowed; }
+    .ng-danger-confirm-btn:not(:disabled):active { opacity: 0.85; }
     .ng-success-msg { font-size: 13px; color: var(--ng-green); padding: 4px 0; display: none; }
     .ng-success-msg.show { display: block; }
 
     /* ── EXPORT ── */
     .ng-export-btn { width: 100%; padding: 14px; background: var(--ng-bg); color: var(--ng-text); border: 1.5px solid var(--ng-border); border-radius: var(--ng-radius-sm); font-size: 15px; font-weight: 600; cursor: pointer; transition: background 0.15s; }
     .ng-export-btn:active { background: #eee; }
+    /* ── NUGGET EDITOR ── */
+    .ng-nugget-row { background: var(--ng-bg); border: 1px solid var(--ng-border); border-radius: var(--ng-radius-sm); padding: 10px 12px; margin-bottom: 8px; display: flex; flex-direction: column; gap: 7px; }
+    .ng-nugget-row-header { font-size: 11px; font-weight: 700; color: var(--ng-orange); text-transform: uppercase; letter-spacing: 0.08em; }
+    .ng-nugget-fields { display: grid; grid-template-columns: 1fr 90px 70px; gap: 6px; }
+    .ng-nugget-input { width: 100%; padding: 8px 10px; border: 1.5px solid var(--ng-border); border-radius: 7px; font-size: 13px; color: var(--ng-text); background: var(--ng-surface); outline: none; transition: border-color 0.15s; }
+    .ng-nugget-input:focus { border-color: var(--ng-orange); }
+    .ng-nugget-select { width: 100%; padding: 8px 6px; border: 1.5px solid var(--ng-border); border-radius: 7px; font-size: 13px; color: var(--ng-text); background: var(--ng-surface); outline: none; }
 
     /* ── HISTORY MODAL ── */
     #history-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 40; align-items: flex-end; max-width: 430px; margin: 0 auto; }
@@ -196,20 +227,38 @@
 
   <!-- AUTH SCREEN -->
   <div id="screen-auth" class="screen">
-    <div class="auth-logo">🔥</div>
-    <div class="auth-title">Nuggercise</div>
-    <div class="auth-sub" id="auth-sub">Tiny moves. Massive streaks.</div>
-    <div class="auth-form">
-      <div class="auth-error" id="auth-error"></div>
-      <div id="signup-fields" style="display:none; flex-direction:column; gap:12px;">
-        <input class="auth-input" type="text" id="auth-nickname" placeholder="Your nickname (e.g. Champ)" maxlength="50" autocomplete="off" />
-        <input class="auth-input" type="text" id="auth-anchor" placeholder="Habit anchor: When I... I do..." maxlength="100" autocomplete="off" />
+    <div id="auth-main">
+      <div class="auth-logo">🔥</div>
+      <div class="auth-title">Nuggercise</div>
+      <div class="auth-sub" id="auth-sub">Tiny moves. Massive streaks.</div>
+      <div class="auth-form">
+        <div class="auth-error" id="auth-error"></div>
+        <div id="signup-fields" style="display:none; flex-direction:column; gap:12px;">
+          <input class="auth-input" type="text" id="auth-nickname" placeholder="Your nickname (e.g. Champ)" maxlength="50" autocomplete="off" />
+          <input class="auth-input" type="text" id="auth-anchor" placeholder="When I sit for 1 hr, I do 20 squats" maxlength="100" autocomplete="off" />
+        </div>
+        <input class="auth-input" type="email" id="auth-email" placeholder="Email address" autocomplete="email" />
+        <input class="auth-input" type="password" id="auth-password" placeholder="Password" autocomplete="current-password" />
+        <div id="confirm-pw-wrap" style="display:none;">
+          <input class="auth-input" type="password" id="auth-password-confirm" placeholder="Repeat password" autocomplete="new-password" />
+        </div>
+        <button class="auth-btn" id="auth-btn" onclick="handleAuth()">Log in</button>
+        <div class="auth-switch" id="auth-switch">
+          No account? <a onclick="toggleAuthMode()">Sign up free</a>
+        </div>
       </div>
-      <input class="auth-input" type="email" id="auth-email" placeholder="Email address" autocomplete="email" />
-      <input class="auth-input" type="password" id="auth-password" placeholder="Password" autocomplete="current-password" />
-      <button class="auth-btn" id="auth-btn" onclick="handleAuth()">Log in</button>
-      <div class="auth-switch" id="auth-switch">
-        No account? <a onclick="toggleAuthMode()">Sign up free</a>
+    </div>
+    <div id="auth-verify" style="display:none; width:100%;">
+      <div class="auth-verify">
+        <div class="auth-verify-icon">📬</div>
+        <div class="auth-verify-title">Check your inbox!</div>
+        <div class="auth-verify-sub">We sent a confirmation link to<br><span class="auth-verify-email" id="verify-email-display"></span></div>
+        <div class="auth-verify-note">
+          Click the link in the email to activate your account, then come back here and log in.<br><br>
+          <strong>Can't find it?</strong> Check your spam or junk folder.
+        </div>
+        <div class="auth-resend">Entered the wrong email? <a onclick="backToSignup()">Start over</a></div>
+        <button class="auth-btn" style="margin-top:8px" onclick="backToLogin()">Go to Log In →</button>
       </div>
     </div>
   </div>
@@ -265,12 +314,7 @@
     <div class="ng-body">
       <div class="ng-form-section">
         <div class="ng-form-label">Quick Nugget Menu</div>
-        <div class="ng-quick-grid">
-          <button class="ng-quick-btn" onclick="quickFill(this,'reps',20,'20 Squats')">🦵 20 Squats</button>
-          <button class="ng-quick-btn" onclick="quickFill(this,'minutes',1,'1 Min Plank')">⏱ 1 Min Plank</button>
-          <button class="ng-quick-btn" onclick="quickFill(this,'reps',15,'15 Pushups')">💪 15 Pushups</button>
-          <button class="ng-quick-btn" onclick="quickFill(this,'minutes',2,'Desk Stretch')">🙆 Desk Stretch</button>
-        </div>
+        <div class="ng-quick-grid" id="quick-grid"></div>
       </div>
       <div class="ng-form-section">
         <div class="ng-form-label">Date &amp; Time</div>
@@ -323,11 +367,18 @@
         </div>
         <div class="ng-settings-row">
           <div class="ng-settings-label">Habit Anchor</div>
-          <input class="ng-input" type="text" id="settings-anchor" placeholder='e.g. "When I close my laptop, I do 10 squats"' maxlength="100" />
+          <input class="ng-input" type="text" id="settings-anchor" placeholder="When I sit for 1 hr, I do 20 squats" maxlength="100" />
           <div style="font-size:12px;color:var(--ng-muted);line-height:1.5">Shown on your dashboard every day as your behavioral compass.</div>
         </div>
         <div class="ng-success-msg" id="settings-success">✓ Profile saved!</div>
         <button class="ng-settings-save" onclick="saveProfile()">Save Profile</button>
+      </div>
+      <div class="ng-settings-section" style="margin-top:8px">
+        <div class="ng-card-label">Quick Nugget Menu</div>
+        <div style="font-size:12px;color:var(--ng-muted);line-height:1.6;margin-bottom:10px">Customise your 4 one-tap shortcuts. Each needs a label, type, and value.</div>
+        <div id="nugget-editor"></div>
+        <div class="ng-success-msg" id="nuggets-success">✓ Quick Nuggets saved!</div>
+        <button class="ng-settings-save" onclick="saveNuggets()">Save Quick Nuggets</button>
       </div>
       <div class="ng-settings-section" style="margin-top:8px">
         <div class="ng-card-label">Your Data</div>
@@ -335,6 +386,25 @@
       </div>
       <div class="ng-settings-section" style="margin-top:8px">
         <button class="ng-logout-btn" onclick="handleLogout()">Log Out</button>
+      </div>
+      <div class="ng-settings-section" style="margin-top:8px">
+        <div class="ng-card-label" style="color:#DC2626;">Danger Zone</div>
+        <div class="ng-danger-box" id="delete-account-box">
+          <div class="ng-danger-intro">
+            <div class="ng-danger-title">Delete Account</div>
+            <div class="ng-danger-desc">Permanently deletes your account, all logs, and your profile. This cannot be undone.</div>
+            <button class="ng-danger-trigger-btn" onclick="openDeleteConfirm()">Delete My Account</button>
+          </div>
+          <div class="ng-danger-confirm" id="delete-confirm-panel" style="display:none;">
+            <div class="ng-danger-warn">⚠️ This will permanently erase everything. To confirm, type your email address below.</div>
+            <input class="ng-input" type="email" id="delete-email-input" placeholder="Your email address" autocomplete="off" oninput="checkDeleteEmail()" />
+            <div class="ng-danger-error" id="delete-error" style="display:none;"></div>
+            <div style="display:flex;gap:8px;margin-top:4px;">
+              <button class="ng-danger-cancel-btn" onclick="closeDeleteConfirm()">Cancel</button>
+              <button class="ng-danger-confirm-btn" id="delete-confirm-btn" onclick="deleteAccount()" disabled>Delete Forever</button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -377,6 +447,13 @@ let selectedFeeling = 0;
 let selectedType = 'reps';
 let isSignup = false;
 let weekLogs = [];
+const DEFAULT_NUGGETS = [
+  { label: '20 Squats',    emoji: '🦵', type: 'reps',    value: 20 },
+  { label: '1 Min Plank',  emoji: '⏱',  type: 'minutes', value: 1  },
+  { label: '15 Pushups',   emoji: '💪', type: 'reps',    value: 15 },
+  { label: 'Desk Stretch', emoji: '🙆', type: 'minutes', value: 2  },
+];
+let quickNuggets = JSON.parse(JSON.stringify(DEFAULT_NUGGETS));
 
 // ─────────────────────────────────────────
 // BOOT
@@ -403,7 +480,7 @@ async function boot() {
 }
 
 async function loadApp() {
-  await Promise.all([loadProfile(), loadPhrases()]);
+  await Promise.all([loadProfile(), loadPhrases(), loadNuggets()]);
   await refreshDashboard();
   hideLoader();
   showScreen('screen-dashboard');
@@ -420,20 +497,56 @@ function hideLoader() {
 function toggleAuthMode() {
   isSignup = !isSignup;
   const signupFields = document.getElementById('signup-fields');
+  const confirmWrap = document.getElementById('confirm-pw-wrap');
   const btn = document.getElementById('auth-btn');
   const sw = document.getElementById('auth-switch');
   const sub = document.getElementById('auth-sub');
   if (isSignup) {
     signupFields.style.display = 'flex';
+    confirmWrap.style.display = 'block';
     btn.textContent = 'Create Account';
     sw.innerHTML = 'Already have an account? <a onclick="toggleAuthMode()">Log in</a>';
     sub.textContent = 'Build tiny habits. Build a better you.';
+    document.getElementById('auth-password').placeholder = 'Choose a password';
+    document.getElementById('auth-password').autocomplete = 'new-password';
   } else {
     signupFields.style.display = 'none';
+    confirmWrap.style.display = 'none';
     btn.textContent = 'Log in';
     sw.innerHTML = 'No account? <a onclick="toggleAuthMode()">Sign up free</a>';
     sub.textContent = 'Tiny moves. Massive streaks.';
+    document.getElementById('auth-password').placeholder = 'Password';
+    document.getElementById('auth-password').autocomplete = 'current-password';
   }
+  setAuthError('');
+}
+
+function showVerifyScreen(email) {
+  document.getElementById('auth-main').style.display = 'none';
+  document.getElementById('auth-verify').style.display = 'block';
+  document.getElementById('verify-email-display').textContent = email;
+}
+
+function backToSignup() {
+  document.getElementById('auth-main').style.display = 'block';
+  document.getElementById('auth-verify').style.display = 'none';
+  isSignup = true;
+  document.getElementById('signup-fields').style.display = 'flex';
+  document.getElementById('confirm-pw-wrap').style.display = 'block';
+  document.getElementById('auth-btn').textContent = 'Create Account';
+  document.getElementById('auth-switch').innerHTML = 'Already have an account? <a onclick="toggleAuthMode()">Log in</a>';
+  setAuthError('');
+}
+
+function backToLogin() {
+  document.getElementById('auth-main').style.display = 'block';
+  document.getElementById('auth-verify').style.display = 'none';
+  isSignup = false;
+  document.getElementById('signup-fields').style.display = 'none';
+  document.getElementById('confirm-pw-wrap').style.display = 'none';
+  document.getElementById('auth-btn').textContent = 'Log in';
+  document.getElementById('auth-sub').textContent = 'Tiny moves. Massive streaks.';
+  document.getElementById('auth-switch').innerHTML = 'No account? <a onclick="toggleAuthMode()">Sign up free</a>';
   setAuthError('');
 }
 
@@ -454,12 +567,18 @@ async function handleAuth() {
   if (isSignup) {
     const nickname = document.getElementById('auth-nickname').value.trim();
     const anchor = document.getElementById('auth-anchor').value.trim();
+    const confirm = document.getElementById('auth-password-confirm').value;
     if (!nickname) { setAuthError('Please enter a nickname.'); btn.disabled = false; btn.textContent = 'Create Account'; return; }
+    if (password.length < 6) { setAuthError('Password must be at least 6 characters.'); btn.disabled = false; btn.textContent = 'Create Account'; return; }
+    if (password !== confirm) { setAuthError('Passwords do not match. Please try again.'); btn.disabled = false; btn.textContent = 'Create Account'; return; }
     const { data, error } = await sb.auth.signUp({ email, password });
     if (error) { setAuthError(error.message); btn.disabled = false; btn.textContent = 'Create Account'; return; }
     if (data.user) {
       await sb.from('profiles').upsert({ id: data.user.id, nickname, habit_anchor: anchor || null });
     }
+    btn.disabled = false;
+    showVerifyScreen(email);
+    return;
   } else {
     const { error } = await sb.auth.signInWithPassword({ email, password });
     if (error) { setAuthError('Incorrect email or password.'); btn.disabled = false; btn.textContent = 'Log in'; return; }
@@ -497,6 +616,127 @@ async function saveProfile() {
     msg.classList.add('show');
     setTimeout(() => msg.classList.remove('show'), 2500);
   }
+}
+
+// ─────────────────────────────────────────
+// QUICK NUGGETS
+// ─────────────────────────────────────────
+async function loadNuggets() {
+  const { data } = await sb
+    .from('profiles')
+    .select('quick_nuggets')
+    .eq('id', currentUser.id)
+    .single();
+  if (data && data.quick_nuggets && Array.isArray(data.quick_nuggets) && data.quick_nuggets.length === 4) {
+    quickNuggets = data.quick_nuggets;
+  } else {
+    quickNuggets = JSON.parse(JSON.stringify(DEFAULT_NUGGETS));
+  }
+  renderQuickGrid();
+  renderNuggetEditor();
+}
+
+async function saveNuggets() {
+  // Read values from the editor UI
+  const updated = [];
+  for (let i = 0; i < 4; i++) {
+    const label = document.getElementById('nq-label-' + i).value.trim().slice(0, 40);
+    const type  = document.getElementById('nq-type-' + i).value;
+    const value = parseInt(document.getElementById('nq-value-' + i).value) || 1;
+    const emoji = document.getElementById('nq-emoji-' + i).value.trim().slice(0, 2) || '💪';
+    updated.push({ label: label || 'Exercise ' + (i+1), emoji, type, value: Math.min(Math.max(value, 1), 10000) });
+  }
+  const { error } = await sb
+    .from('profiles')
+    .update({ quick_nuggets: updated, updated_at: new Date().toISOString() })
+    .eq('id', currentUser.id);
+  if (!error) {
+    quickNuggets = updated;
+    renderQuickGrid();
+    const msg = document.getElementById('nuggets-success');
+    msg.classList.add('show');
+    setTimeout(() => msg.classList.remove('show'), 2500);
+  }
+}
+
+function renderNuggetEditor() {
+  const container = document.getElementById('nugget-editor');
+  if (!container) return;
+  container.innerHTML = '';
+  quickNuggets.forEach((n, i) => {
+    const row = document.createElement('div');
+    row.className = 'ng-nugget-row';
+    const header = document.createElement('div');
+    header.className = 'ng-nugget-row-header';
+    header.textContent = 'Button ' + (i + 1);
+    const fields = document.createElement('div');
+    fields.className = 'ng-nugget-fields';
+    // Label input
+    const labelInput = document.createElement('input');
+    labelInput.className = 'ng-nugget-input';
+    labelInput.id = 'nq-label-' + i;
+    labelInput.type = 'text';
+    labelInput.maxLength = 40;
+    labelInput.placeholder = 'Label';
+    labelInput.value = n.label;
+    // Type select
+    const typeSelect = document.createElement('select');
+    typeSelect.className = 'ng-nugget-select';
+    typeSelect.id = 'nq-type-' + i;
+    ['reps','minutes'].forEach(t => {
+      const opt = document.createElement('option');
+      opt.value = t;
+      opt.textContent = t === 'reps' ? 'Reps' : 'Mins';
+      if (n.type === t) opt.selected = true;
+      typeSelect.appendChild(opt);
+    });
+    // Value input
+    const valInput = document.createElement('input');
+    valInput.className = 'ng-nugget-input';
+    valInput.id = 'nq-value-' + i;
+    valInput.type = 'text';
+    valInput.inputMode = 'numeric';
+    valInput.maxLength = 5;
+    valInput.placeholder = 'Value';
+    valInput.value = n.value;
+    valInput.oninput = function() { this.value = this.value.replace(/[^0-9]/g,'').slice(0,5); };
+    // Emoji row
+    const emojiRow = document.createElement('div');
+    emojiRow.style.cssText = 'display:flex;align-items:center;gap:8px;margin-top:2px;';
+    const emojiLabel = document.createElement('span');
+    emojiLabel.style.cssText = 'font-size:11px;color:var(--ng-subtle);';
+    emojiLabel.textContent = 'Icon:';
+    const emojiInput = document.createElement('input');
+    emojiInput.className = 'ng-nugget-input';
+    emojiInput.id = 'nq-emoji-' + i;
+    emojiInput.type = 'text';
+    emojiInput.maxLength = 2;
+    emojiInput.style.cssText = 'width:52px;text-align:center;font-size:18px;padding:6px;';
+    emojiInput.value = n.emoji;
+    emojiInput.placeholder = '💪';
+    emojiRow.appendChild(emojiLabel);
+    emojiRow.appendChild(emojiInput);
+    fields.appendChild(labelInput);
+    fields.appendChild(typeSelect);
+    fields.appendChild(valInput);
+    row.appendChild(header);
+    row.appendChild(fields);
+    row.appendChild(emojiRow);
+    container.appendChild(row);
+  });
+}
+
+function renderQuickGrid() {
+  const grid = document.getElementById('quick-grid');
+  if (!grid) return;
+  grid.innerHTML = '';
+  quickNuggets.forEach(n => {
+    const btn = document.createElement('button');
+    btn.className = 'ng-quick-btn';
+    btn.onclick = function() { quickFill(this, n.type, n.value, n.label); };
+    btn.textContent = n.emoji + ' ' + n.label;
+    grid.appendChild(btn);
+  });
 }
 
 function updateWelcome() {
@@ -904,7 +1144,67 @@ function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   if (id === 'screen-log') initLogForm();
+  if (id === 'screen-settings') renderNuggetEditor();
   window.scrollTo(0, 0);
+}
+
+// ─────────────────────────────────────────
+// DELETE ACCOUNT
+// ─────────────────────────────────────────
+function openDeleteConfirm() {
+  document.getElementById('delete-confirm-panel').style.display = 'flex';
+  document.getElementById('delete-confirm-panel').style.flexDirection = 'column';
+  document.getElementById('delete-confirm-panel').style.gap = '10px';
+  document.querySelector('.ng-danger-intro').style.display = 'none';
+  document.getElementById('delete-email-input').value = '';
+  document.getElementById('delete-confirm-btn').disabled = true;
+  document.getElementById('delete-error').style.display = 'none';
+}
+
+function closeDeleteConfirm() {
+  document.getElementById('delete-confirm-panel').style.display = 'none';
+  document.querySelector('.ng-danger-intro').style.display = 'block';
+  document.getElementById('delete-email-input').value = '';
+  document.getElementById('delete-confirm-btn').disabled = true;
+  document.getElementById('delete-error').style.display = 'none';
+}
+
+function checkDeleteEmail() {
+  const typed = document.getElementById('delete-email-input').value.trim().toLowerCase();
+  const actual = (currentUser && currentUser.email) ? currentUser.email.toLowerCase() : '';
+  document.getElementById('delete-confirm-btn').disabled = (typed !== actual);
+}
+
+async function deleteAccount() {
+  const btn = document.getElementById('delete-confirm-btn');
+  const errEl = document.getElementById('delete-error');
+  btn.disabled = true;
+  btn.textContent = 'Deleting...';
+  errEl.style.display = 'none';
+  try {
+    // Call the Edge Function to delete the auth user server-side
+    const { data: { session } } = await sb.auth.getSession();
+    const res = await fetch(SUPABASE_URL + '/functions/v1/delete-account', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + session.access_token
+      }
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.error || 'Deletion failed. Please try again.');
+    }
+    // Sign out and clear everything
+    await sb.auth.signOut();
+    localStorage.clear();
+    window.location.replace(window.location.pathname);
+  } catch (err) {
+    errEl.textContent = err.message;
+    errEl.style.display = 'block';
+    btn.disabled = false;
+    btn.textContent = 'Delete Forever';
+  }
 }
 
 // ─────────────────────────────────────────
