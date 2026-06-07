@@ -513,23 +513,34 @@ let quickNuggets = JSON.parse(JSON.stringify(DEFAULT_NUGGETS));
 // BOOT
 // ─────────────────────────────────────────
 async function boot() {
-  const { data: { session } } = await sb.auth.getSession();
-  if (session) {
-    currentUser = session.user;
-    await loadApp();
-  } else {
+  // Detect password recovery BEFORE session check — Supabase puts type=recovery
+  // in the URL hash when user clicks the reset link in their email.
+  // Must be checked first or getSession() will load the dashboard immediately.
+  const hashParams = new URLSearchParams(window.location.hash.replace('#', '?').slice(1));
+  const urlType = hashParams.get('type');
+  if (urlType === 'recovery') {
+    isRecoveryMode = true;
     hideLoader();
     showScreen('screen-auth');
+    // Wait for onAuthStateChange to fire PASSWORD_RECOVERY and show the form
+  } else {
+    const { data: { session } } = await sb.auth.getSession();
+    if (session) {
+      currentUser = session.user;
+      await loadApp();
+    } else {
+      hideLoader();
+      showScreen('screen-auth');
+    }
   }
   sb.auth.onAuthStateChange(async (event, session) => {
     if (event === 'PASSWORD_RECOVERY') {
-      // Lock routing — user must complete password reset before accessing dashboard
       isRecoveryMode = true;
       hideLoader();
       showScreen('screen-auth');
       showNewPasswordScreen();
     } else if (event === 'SIGNED_IN' && session) {
-      if (isRecoveryMode) return; // Block dashboard access until password is reset
+      if (isRecoveryMode) return; // Block dashboard until password reset complete
       currentUser = session.user;
       await loadApp();
     } else if (event === 'SIGNED_OUT') {
