@@ -702,7 +702,7 @@ async function sendPasswordReset() {
   btn.disabled = true;
   btn.textContent = 'Sending...';
   const { error } = await sb.auth.resetPasswordForEmail(email, {
-    redirectTo: 'https://antloh68.github.io/nuggercise'
+    redirectTo: window.location.origin + window.location.pathname
   });
   if (error) {
     errEl.textContent = error.message;
@@ -740,10 +740,7 @@ async function handleAuth() {
     const { data, error } = await sb.auth.signUp({
       email,
       password,
-      options: {
-        data: { nickname, habit_anchor: anchor || null },
-        emailRedirectTo: 'https://antloh68.github.io/nuggercise'
-      }
+      options: { data: { nickname, habit_anchor: anchor || null } }
     });
     btn.disabled = false;
     btn.textContent = 'Create Account';
