@@ -783,29 +783,13 @@ async function handleLogout() {
 // ─────────────────────────────────────────
 async function loadProfile() {
   const { data } = await sb.from('profiles').select('*').eq('id', currentUser.id).single();
-  // On first login after email confirmation, apply nickname and anchor from signup metadata
-  if (data && (!data.nickname || data.nickname === currentUser.email?.split('@')?.[0])) {
-    const meta = currentUser.user_metadata || {};
-    if (meta.nickname) {
-      const updates = {
-        id: currentUser.id,
-        nickname: meta.nickname,
-        habit_anchor: meta.habit_anchor || null,
-        updated_at: new Date().toISOString()
-      };
-      await sb.from('profiles').upsert(updates);
-      currentProfile = { ...data, ...updates };
-    } else {
-      currentProfile = data;
-    }
-  } else {
-    currentProfile = data;
-  }
+  // Trust the database trigger (on_auth_user_created) to have set nickname/anchor correctly.
+  // Never overwrite from user_metadata here — metadata may not be populated on first SIGNED_IN.
+  currentProfile = data || null;
   if (currentProfile) {
     document.getElementById('settings-nickname').value = currentProfile.nickname || '';
     document.getElementById('settings-anchor').value = currentProfile.habit_anchor || '';
   }
-  // Show current email
   const emailEl = document.getElementById('current-email-display');
   if (emailEl && currentUser) emailEl.textContent = currentUser.email || '';
 }
@@ -1231,26 +1215,50 @@ async function submitLog() {
   const val = parseInt(valRaw);
   const desc = document.getElementById('log-desc').value.trim();
   const datetimeVal = document.getElementById('log-datetime').value;
+  const errValueEl = document.getElementById('err-value');
+  const errFeelingEl = document.getElementById('err-feeling');
 
-  // Validate
+  // Reset errors
+  errValueEl.classList.remove('show');
+  errFeelingEl.classList.remove('show');
+
   let hasError = false;
+
+  // Validate metric value
   if (!valRaw || isNaN(val) || val < 1 || val > 10000) {
-    document.getElementById('err-value').classList.add('show');
+    errValueEl.textContent = 'Please enter a number between 1 and 10,000.';
+    errValueEl.classList.add('show');
     hasError = true;
-  } else {
-    document.getElementById('err-value').classList.remove('show');
   }
+
+  // Validate datetime — client-side pre-check before hitting Supabase
+  if (datetimeVal) {
+    const chosenDate = new Date(datetimeVal);
+    const now = new Date();
+    const timeDiff = now - chosenDate;
+    if (timeDiff < 0) {
+      errValueEl.textContent = 'Date cannot be in the future.';
+      errValueEl.classList.add('show');
+      hasError = true;
+    } else if (timeDiff > 48 * 60 * 60 * 1000) {
+      errValueEl.textContent = 'Date must be within the last 48 hours.';
+      errValueEl.classList.add('show');
+      hasError = true;
+    }
+  }
+
+  // Validate feeling
   if (!selectedFeeling) {
-    document.getElementById('err-feeling').classList.add('show');
+    errFeelingEl.classList.add('show');
     hasError = true;
   }
+
   if (hasError) return;
 
   const btn = document.getElementById('submit-btn');
   btn.disabled = true;
   btn.textContent = 'Logging...';
 
-  // Safe text-node approach — description is stored as plain text, never rendered as HTML
   const loggedAt = new Date(datetimeVal).toISOString();
   const { error } = await sb.from('nuggercises').insert({
     user_id: currentUser.id,
@@ -1264,17 +1272,13 @@ async function submitLog() {
   if (error) {
     btn.disabled = false;
     btn.textContent = 'Log It! 🔥';
-    if (error.message.includes('logged_at')) {
-      document.getElementById('err-value').textContent = 'Date must be within the last 48 hours.';
-      document.getElementById('err-value').classList.add('show');
-    }
+    // Generic fallback for any DB error
+    errValueEl.textContent = 'Something went wrong. Please try again.';
+    errValueEl.classList.add('show');
     return;
   }
 
-  // Refresh data silently
   await refreshDashboard();
-
-  // Show reward
   const { phrase, tier } = pickPhrase();
   showReward(phrase, tier, val, selectedType, desc);
   btn.disabled = false;
@@ -1339,16 +1343,24 @@ async function exportCSV() {
     .order('logged_at', { ascending: false });
 
   if (!logs || !logs.length) { alert('No logs to export yet!'); return; }
+
+  // Wrap every field in quotes and escape internal quotes — safe for Excel, Google Sheets, Numbers
+  const csvEscape = v => '"' + String(v ?? '').replace(/"/g, '""').replace(/[\r\n]+/g, ' ') + '"';
+
   const headers = ['Date/Time (SGT)', 'Type', 'Value', 'Description', 'Feeling (1-5)'];
   const rows = logs.map(l => [
     new Date(l.logged_at).toLocaleString('en-SG', { timeZone: 'Asia/Singapore' }),
     l.metric_type,
     l.metric_value,
-    (l.description || '').replace(/,/g, ' '),
+    l.description || '',
     l.feeling_rating
   ]);
-  const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
-  const blob = new Blob([csv], { type: 'text/csv' });
+
+  const csv = [headers, ...rows]
+    .map(r => r.map(csvEscape).join(','))
+    .join('\n');
+
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' }); // BOM for Excel UTF-8
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
