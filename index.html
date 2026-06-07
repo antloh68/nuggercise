@@ -270,13 +270,13 @@
     <div id="auth-verify" style="display:none; width:100%;">
       <div class="auth-verify">
         <div class="auth-verify-icon">📬</div>
-        <div class="auth-verify-title">Check your inbox!</div>
+        <div class="auth-verify-title" id="verify-title">Check your inbox!</div>
         <div class="auth-verify-sub">We sent a confirmation link to<br><span class="auth-verify-email" id="verify-email-display"></span></div>
-        <div class="auth-verify-note">
-          Click the link in the email to activate your account, then come back here and log in.<br><br>
-          <strong>Can't find it?</strong> Check your spam or junk folder.
+        <div class="auth-verify-note" id="verify-note">
+          📬 Check your <strong>inbox</strong> and <strong>spam / junk folder</strong>.<br><br>
+          Click the link to activate your account, then come back here and log in.
         </div>
-        <div class="auth-resend">Entered the wrong email? <a onclick="backToSignup()">Start over</a></div>
+        <div class="auth-resend" id="verify-resend">Entered the wrong email? <a onclick="backToSignup()">Start over</a></div>
         <button class="auth-btn" style="margin-top:8px" onclick="backToLogin()">Go to Log In →</button>
       </div>
     </div>
@@ -573,10 +573,29 @@ function toggleAuthMode() {
   setAuthError('');
 }
 
-function showVerifyScreen(email) {
+function showVerifyScreen(email, isDuplicate) {
   document.getElementById('auth-main').style.display = 'none';
   document.getElementById('auth-verify').style.display = 'block';
+  // Use textContent — safe, no XSS
   document.getElementById('verify-email-display').textContent = email;
+  const titleEl = document.getElementById('verify-title');
+  const noteEl = document.getElementById('verify-note');
+  const resendEl = document.getElementById('verify-resend');
+  if (isDuplicate) {
+    titleEl.textContent = 'Already registered — check your inbox!';
+    noteEl.innerHTML = 'An account with this email is already waiting for confirmation.<br><br>' +
+      'We\'ve resent the confirmation link to <strong>' + email + '</strong>.<br><br>' +
+      '📬 Check your <strong>inbox</strong> and <strong>spam / junk folder</strong>.<br><br>' +
+      'If you don\'t see it within a few minutes, wait 1 hour and try registering again — ' +
+      'unconfirmed accounts are cleared automatically.';
+    resendEl.innerHTML = 'Already have an account? <a onclick="backToLogin()">Log in instead</a>';
+  } else {
+    titleEl.textContent = 'Check your inbox!';
+    noteEl.innerHTML = 'We sent a confirmation link to <strong>' + email + '</strong>.<br><br>' +
+      '📬 Check your <strong>inbox</strong> and <strong>spam / junk folder</strong>.<br><br>' +
+      'Click the link to activate your account, then come back here and log in.';
+    resendEl.innerHTML = 'Entered the wrong email? <a onclick="backToSignup()">Start over</a>';
+  }
 }
 
 function backToSignup() {
@@ -718,13 +737,27 @@ async function handleAuth() {
     if (!nickname) { setAuthError('Please enter a nickname.'); btn.disabled = false; btn.textContent = 'Create Account'; return; }
     if (password.length < 6) { setAuthError('Password must be at least 6 characters.'); btn.disabled = false; btn.textContent = 'Create Account'; return; }
     if (password !== confirm) { setAuthError('Passwords do not match. Please try again.'); btn.disabled = false; btn.textContent = 'Create Account'; return; }
-    const { data, error } = await sb.auth.signUp({ email, password });
-    if (error) { setAuthError(error.message); btn.disabled = false; btn.textContent = 'Create Account'; return; }
-    if (data.user) {
-      await sb.from('profiles').upsert({ id: data.user.id, nickname, habit_anchor: anchor || null });
-    }
+    const { data, error } = await sb.auth.signUp({
+      email,
+      password,
+      options: { data: { nickname, habit_anchor: anchor || null } }
+    });
     btn.disabled = false;
-    showVerifyScreen(email);
+    btn.textContent = 'Create Account';
+    if (error) {
+      // "User already registered" — account exists but may not be confirmed yet
+      const msg = error.message.toLowerCase();
+      if (msg.includes('already registered') || msg.includes('already exists') || msg.includes('email address is already')) {
+        showVerifyScreen(email, true); // true = duplicate flag
+      } else {
+        setAuthError(error.message);
+      }
+      return;
+    }
+    // Supabase returns an identities array — if empty, user exists but is unconfirmed
+    // (Supabase silently resends the confirmation email in this case)
+    const isExistingUnconfirmed = data.user && data.user.identities && data.user.identities.length === 0;
+    showVerifyScreen(email, isExistingUnconfirmed);
     return;
   } else {
     const { error } = await sb.auth.signInWithPassword({ email, password });
@@ -744,10 +777,27 @@ async function handleLogout() {
 // ─────────────────────────────────────────
 async function loadProfile() {
   const { data } = await sb.from('profiles').select('*').eq('id', currentUser.id).single();
-  currentProfile = data;
-  if (data) {
-    document.getElementById('settings-nickname').value = data.nickname || '';
-    document.getElementById('settings-anchor').value = data.habit_anchor || '';
+  // On first login after email confirmation, apply nickname and anchor from signup metadata
+  if (data && (!data.nickname || data.nickname === currentUser.email?.split('@')[0])) {
+    const meta = currentUser.user_metadata || {};
+    if (meta.nickname) {
+      const updates = {
+        id: currentUser.id,
+        nickname: meta.nickname,
+        habit_anchor: meta.habit_anchor || null,
+        updated_at: new Date().toISOString()
+      };
+      await sb.from('profiles').upsert(updates);
+      currentProfile = { ...data, ...updates };
+    } else {
+      currentProfile = data;
+    }
+  } else {
+    currentProfile = data;
+  }
+  if (currentProfile) {
+    document.getElementById('settings-nickname').value = currentProfile.nickname || '';
+    document.getElementById('settings-anchor').value = currentProfile.habit_anchor || '';
   }
   // Show current email
   const emailEl = document.getElementById('current-email-display');
