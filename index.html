@@ -33,12 +33,11 @@
 
     /* ── AUTH SCREEN ── */
     #screen-auth { align-items: center; justify-content: center; padding: 32px 16px; background: var(--ng-surface); }
-    #auth-main { width: 100%; }
-    .auth-form { width: 100%; display: flex; flex-direction: column; gap: 12px; }
-    .auth-logo { font-size: 42px; margin-bottom: 8px; }
-    .auth-title { font-size: 28px; font-weight: 700; color: var(--ng-orange); letter-spacing: -0.5px; margin-bottom: 4px; }
-    .auth-sub { font-size: 14px; color: var(--ng-muted); margin-bottom: 36px; text-align: center; }
-    .auth-form { width: 100%; display: flex; flex-direction: column; gap: 12px; }
+    #auth-main { width: 100%; display: flex; flex-direction: column; align-items: center; }
+    .auth-logo { font-size: 48px; margin-bottom: 10px; text-align: center; width: 100%; }
+    .auth-title { font-size: 28px; font-weight: 700; color: var(--ng-orange); letter-spacing: -0.5px; margin-bottom: 6px; text-align: center; width: 100%; }
+    .auth-sub { font-size: 14px; color: var(--ng-muted); margin-bottom: 32px; text-align: center; width: 100%; }
+    .auth-form { width: 100%; display: flex; flex-direction: column; gap: 12px; text-align: left; }
     .auth-input { width: 100%; padding: 14px 16px; border: 1.5px solid var(--ng-border); border-radius: var(--ng-radius-sm); font-size: 16px; background: var(--ng-bg); color: var(--ng-text); outline: none; transition: border-color 0.15s; }
     .auth-input:focus { border-color: var(--ng-orange); }
     .auth-btn { width: 100%; padding: 15px; background: var(--ng-orange); color: #fff; border: none; border-radius: var(--ng-radius-sm); font-size: 16px; font-weight: 600; cursor: pointer; transition: background 0.15s, transform 0.1s; }
@@ -61,6 +60,10 @@
     .auth-verify-note { font-size: 12px; color: var(--ng-subtle); background: var(--ng-bg); border-radius: var(--ng-radius-sm); padding: 10px 14px; line-height: 1.6; width: 100%; text-align: left; }
     .auth-resend { font-size: 13px; color: var(--ng-muted); }
     .auth-resend a { color: var(--ng-orange); text-decoration: none; font-weight: 500; cursor: pointer; }
+    .auth-forgot { font-size: 13px; text-align: right; margin-top: -4px; }
+    .auth-forgot a { color: var(--ng-orange); text-decoration: none; font-weight: 500; cursor: pointer; }
+    .auth-success { font-size: 13px; color: #059669; background: #ECFDF5; border-radius: var(--ng-radius-sm); padding: 10px 14px; display: none; }
+    .auth-success.show { display: block; }
 
     /* ── HEADER ── */
     .ng-header { background: var(--ng-surface); padding: 14px 22px 12px; border-bottom: 1px solid var(--ng-border); display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 10; }
@@ -241,6 +244,7 @@
         </div>
         <input class="auth-input" type="email" id="auth-email" placeholder="Email address" autocomplete="email" />
         <input class="auth-input" type="password" id="auth-password" placeholder="Password" autocomplete="current-password" />
+        <div id="forgot-pw-link" class="auth-forgot"><a onclick="showForgotPassword()">Forgot password?</a></div>
         <div id="confirm-pw-wrap" style="display:none;">
           <input class="auth-input" type="password" id="auth-password-confirm" placeholder="Repeat password" autocomplete="new-password" />
         </div>
@@ -248,6 +252,19 @@
         <div class="auth-switch" id="auth-switch">
           No account? <a onclick="toggleAuthMode()">Sign up free</a>
         </div>
+      </div>
+    </div>
+    <!-- FORGOT PASSWORD PANEL -->
+    <div id="auth-forgot-panel" style="display:none; width:100%;">
+      <div class="auth-verify">
+        <div class="auth-verify-icon">🔑</div>
+        <div class="auth-verify-title">Reset your password</div>
+        <div class="auth-verify-sub" style="margin-bottom:4px;">Enter your account email and we'll send you a reset link.</div>
+        <div class="auth-error" id="forgot-error" style="width:100%;"></div>
+        <div class="auth-success" id="forgot-success" style="width:100%;"></div>
+        <input class="auth-input" type="email" id="forgot-email" placeholder="Email address" autocomplete="email" style="width:100%;" />
+        <button class="auth-btn" id="forgot-btn" onclick="sendPasswordReset()">Send Reset Link</button>
+        <div class="auth-resend"><a onclick="backToLogin()">← Back to Log In</a></div>
       </div>
     </div>
     <div id="auth-verify" style="display:none; width:100%;">
@@ -374,6 +391,19 @@
         </div>
         <div class="ng-success-msg" id="settings-success">✓ Profile saved!</div>
         <button class="ng-settings-save" onclick="saveProfile()">Save Profile</button>
+      </div>
+      <div class="ng-settings-section" style="margin-top:8px">
+        <div class="ng-card-label">Account Email</div>
+        <div class="ng-settings-row">
+          <div class="ng-settings-label">Current Email</div>
+          <div id="current-email-display" style="font-size:14px;color:var(--ng-muted);padding:4px 0;"></div>
+          <div class="ng-settings-label" style="margin-top:8px;">New Email Address</div>
+          <input class="ng-input" type="email" id="settings-new-email" placeholder="Enter new email address" autocomplete="off" />
+          <div style="font-size:12px;color:var(--ng-muted);line-height:1.5;">A confirmation link will be sent to your new address before it is changed.</div>
+        </div>
+        <div class="ng-success-msg" id="email-change-success">✓ Confirmation link sent to your new email!</div>
+        <div class="auth-error" id="email-change-error" style="margin-bottom:4px;"></div>
+        <button class="ng-settings-save" onclick="changeEmail()">Update Email</button>
       </div>
       <div class="ng-settings-section" style="margin-top:8px">
         <div class="ng-card-label">Quick Nugget Menu</div>
@@ -511,6 +541,7 @@ function toggleAuthMode() {
     sub.textContent = 'Build tiny habits. Build a better you.';
     document.getElementById('auth-password').placeholder = 'Choose a password';
     document.getElementById('auth-password').autocomplete = 'new-password';
+    document.getElementById('forgot-pw-link').style.display = 'none';
   } else {
     signupFields.style.display = 'none';
     confirmWrap.style.display = 'none';
@@ -519,6 +550,7 @@ function toggleAuthMode() {
     sub.textContent = 'Tiny moves. Massive streaks.';
     document.getElementById('auth-password').placeholder = 'Password';
     document.getElementById('auth-password').autocomplete = 'current-password';
+    document.getElementById('forgot-pw-link').style.display = 'block';
   }
   setAuthError('');
 }
@@ -543,13 +575,51 @@ function backToSignup() {
 function backToLogin() {
   document.getElementById('auth-main').style.display = 'block';
   document.getElementById('auth-verify').style.display = 'none';
+  document.getElementById('auth-forgot-panel').style.display = 'none';
   isSignup = false;
   document.getElementById('signup-fields').style.display = 'none';
   document.getElementById('confirm-pw-wrap').style.display = 'none';
+  document.getElementById('forgot-pw-link').style.display = 'block';
   document.getElementById('auth-btn').textContent = 'Log in';
   document.getElementById('auth-sub').textContent = 'Tiny moves. Massive streaks.';
   document.getElementById('auth-switch').innerHTML = 'No account? <a onclick="toggleAuthMode()">Sign up free</a>';
   setAuthError('');
+}
+
+function showForgotPassword() {
+  document.getElementById('auth-main').style.display = 'none';
+  document.getElementById('auth-forgot-panel').style.display = 'block';
+  document.getElementById('forgot-email').value = '';
+  document.getElementById('forgot-error').textContent = '';
+  document.getElementById('forgot-error').classList.remove('show');
+  document.getElementById('forgot-success').classList.remove('show');
+  document.getElementById('forgot-btn').disabled = false;
+  document.getElementById('forgot-btn').textContent = 'Send Reset Link';
+}
+
+async function sendPasswordReset() {
+  const email = document.getElementById('forgot-email').value.trim();
+  const errEl = document.getElementById('forgot-error');
+  const successEl = document.getElementById('forgot-success');
+  const btn = document.getElementById('forgot-btn');
+  errEl.classList.remove('show');
+  successEl.classList.remove('show');
+  if (!email) { errEl.textContent = 'Please enter your email address.'; errEl.classList.add('show'); return; }
+  btn.disabled = true;
+  btn.textContent = 'Sending...';
+  const { error } = await sb.auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.origin + window.location.pathname
+  });
+  if (error) {
+    errEl.textContent = error.message;
+    errEl.classList.add('show');
+    btn.disabled = false;
+    btn.textContent = 'Send Reset Link';
+  } else {
+    successEl.textContent = '✓ Reset link sent! Check your inbox (and spam folder).';
+    successEl.classList.add('show');
+    btn.textContent = 'Link Sent';
+  }
 }
 
 function setAuthError(msg) {
@@ -603,6 +673,29 @@ async function loadProfile() {
   if (data) {
     document.getElementById('settings-nickname').value = data.nickname || '';
     document.getElementById('settings-anchor').value = data.habit_anchor || '';
+  }
+  // Show current email
+  const emailEl = document.getElementById('current-email-display');
+  if (emailEl && currentUser) emailEl.textContent = currentUser.email || '';
+}
+
+async function changeEmail() {
+  const newEmail = document.getElementById('settings-new-email').value.trim();
+  const successEl = document.getElementById('email-change-success');
+  const errEl = document.getElementById('email-change-error');
+  successEl.classList.remove('show');
+  errEl.classList.remove('show');
+  errEl.textContent = '';
+  if (!newEmail) { errEl.textContent = 'Please enter a new email address.'; errEl.classList.add('show'); return; }
+  if (newEmail === currentUser.email) { errEl.textContent = 'That is already your current email address.'; errEl.classList.add('show'); return; }
+  const { error } = await sb.auth.updateUser({ email: newEmail });
+  if (error) {
+    errEl.textContent = error.message;
+    errEl.classList.add('show');
+  } else {
+    successEl.classList.add('show');
+    document.getElementById('settings-new-email').value = '';
+    setTimeout(() => successEl.classList.remove('show'), 4000);
   }
 }
 
