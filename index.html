@@ -280,6 +280,19 @@
         <button class="auth-btn" style="margin-top:8px" onclick="backToLogin()">Go to Log In →</button>
       </div>
     </div>
+    <!-- NEW PASSWORD SCREEN — shown after clicking reset link in email -->
+    <div id="auth-new-password" style="display:none; width:100%;">
+      <div class="auth-verify">
+        <div class="auth-verify-icon">🔐</div>
+        <div class="auth-verify-title">Choose a new password</div>
+        <div class="auth-verify-sub" style="margin-bottom:16px;">Enter your new password below. Make it strong!</div>
+        <div class="auth-error" id="new-pw-error" style="width:100%;"></div>
+        <div class="auth-success" id="new-pw-success" style="width:100%;"></div>
+        <input class="auth-input" type="password" id="new-pw-input" placeholder="New password" autocomplete="new-password" style="width:100%; margin-bottom:10px;" />
+        <input class="auth-input" type="password" id="new-pw-confirm" placeholder="Repeat new password" autocomplete="new-password" style="width:100%; margin-bottom:14px;" />
+        <button class="auth-btn" id="new-pw-btn" onclick="submitNewPassword()">Update Password</button>
+      </div>
+    </div>
   </div>
 
   <!-- DASHBOARD SCREEN -->
@@ -500,7 +513,12 @@ async function boot() {
     showScreen('screen-auth');
   }
   sb.auth.onAuthStateChange(async (event, session) => {
-    if (event === 'SIGNED_IN' && session) {
+    if (event === 'PASSWORD_RECOVERY') {
+      // User clicked the reset link in their email
+      hideLoader();
+      showScreen('screen-auth');
+      showNewPasswordScreen();
+    } else if (event === 'SIGNED_IN' && session) {
       currentUser = session.user;
       await loadApp();
     } else if (event === 'SIGNED_OUT') {
@@ -595,6 +613,63 @@ function showForgotPassword() {
   document.getElementById('forgot-success').classList.remove('show');
   document.getElementById('forgot-btn').disabled = false;
   document.getElementById('forgot-btn').textContent = 'Send Reset Link';
+}
+
+function showNewPasswordScreen() {
+  // Hide all other panels
+  document.getElementById('auth-main').style.display = 'none';
+  document.getElementById('auth-forgot-panel').style.display = 'none';
+  document.getElementById('auth-verify').style.display = 'none';
+  // Show new password form
+  document.getElementById('auth-new-password').style.display = 'block';
+  document.getElementById('new-pw-input').value = '';
+  document.getElementById('new-pw-confirm').value = '';
+  document.getElementById('new-pw-error').classList.remove('show');
+  document.getElementById('new-pw-success').classList.remove('show');
+  document.getElementById('new-pw-btn').disabled = false;
+  document.getElementById('new-pw-btn').textContent = 'Update Password';
+}
+
+async function submitNewPassword() {
+  const pw = document.getElementById('new-pw-input').value;
+  const confirm = document.getElementById('new-pw-confirm').value;
+  const errEl = document.getElementById('new-pw-error');
+  const successEl = document.getElementById('new-pw-success');
+  const btn = document.getElementById('new-pw-btn');
+  errEl.classList.remove('show');
+  successEl.classList.remove('show');
+  if (!pw || pw.length < 6) {
+    errEl.textContent = 'Password must be at least 6 characters.';
+    errEl.classList.add('show');
+    return;
+  }
+  if (pw !== confirm) {
+    errEl.textContent = 'Passwords do not match. Please try again.';
+    errEl.classList.add('show');
+    return;
+  }
+  btn.disabled = true;
+  btn.textContent = 'Updating...';
+  const { error } = await sb.auth.updateUser({ password: pw });
+  if (error) {
+    errEl.textContent = error.message;
+    errEl.classList.add('show');
+    btn.disabled = false;
+    btn.textContent = 'Update Password';
+  } else {
+    successEl.textContent = '✓ Password updated! Taking you to the app...';
+    successEl.classList.add('show');
+    // Small delay so user can read the success message, then load app
+    setTimeout(async () => {
+      const { data: { session } } = await sb.auth.getSession();
+      if (session) {
+        currentUser = session.user;
+        await loadApp();
+      } else {
+        backToLogin();
+      }
+    }, 1800);
+  }
 }
 
 async function sendPasswordReset() {
