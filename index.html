@@ -162,6 +162,13 @@
     .ng-settings-save:active { background: var(--ng-orange-dark); }
     .ng-logout-btn { width: 100%; padding: 14px; background: #fff; color: #DC2626; border: 1.5px solid #DC2626; border-radius: var(--ng-radius-sm); font-size: 15px; font-weight: 600; cursor: pointer; transition: background 0.15s; }
     .ng-logout-btn:active { background: #FEF2F2; }
+    /* ── WARNING BOX (Change Email) ── */
+    .ng-warning-box { background: #FFFBEB; border: 1.5px solid #F59E0B; border-radius: var(--ng-radius-sm); padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+    .ng-warning-title { font-size: 14px; font-weight: 700; color: #B45309; }
+    .ng-warning-desc { font-size: 12px; color: #B45309; line-height: 1.5; }
+    .ng-warning-label { font-size: 11px; font-weight: 700; color: #B45309; text-transform: uppercase; letter-spacing: 0.06em; }
+    .ng-warning-save { width: 100%; padding: 11px; background: #fff; color: #B45309; border: 1.5px solid #F59E0B; border-radius: var(--ng-radius-sm); font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.15s; }
+    .ng-warning-save:active { background: #FEF3C7; }
     /* ── DANGER ZONE ── */
     .ng-danger-box { background: #FEF2F2; border: 1.5px solid #FECACA; border-radius: var(--ng-radius-sm); padding: 14px; display: flex; flex-direction: column; gap: 10px; }
     .ng-danger-title { font-size: 14px; font-weight: 700; color: #DC2626; }
@@ -405,19 +412,6 @@
         <button class="ng-settings-save" onclick="saveProfile()">Save Profile</button>
       </div>
       <div class="ng-settings-section" style="margin-top:8px">
-        <div class="ng-card-label">Account Email</div>
-        <div class="ng-settings-row">
-          <div class="ng-settings-label">Current Email</div>
-          <div id="current-email-display" style="font-size:14px;color:var(--ng-muted);padding:4px 0;"></div>
-          <div class="ng-settings-label" style="margin-top:8px;">New Email Address</div>
-          <input class="ng-input" type="email" id="settings-new-email" placeholder="Enter new email address" autocomplete="off" />
-          <div style="font-size:12px;color:var(--ng-muted);line-height:1.5;">A confirmation link will be sent to your new address before it is changed.</div>
-        </div>
-        <div class="ng-success-msg" id="email-change-success">✓ Confirmation link sent to your new email!</div>
-        <div class="auth-error" id="email-change-error" style="margin-bottom:4px;"></div>
-        <button class="ng-settings-save" onclick="changeEmail()">Update Email</button>
-      </div>
-      <div class="ng-settings-section" style="margin-top:8px">
         <div class="ng-card-label">Quick Nugget Menu</div>
         <div style="font-size:12px;color:var(--ng-muted);line-height:1.6;margin-bottom:10px">Customise your 4 one-tap shortcuts. Each needs a label, type, and value.</div>
         <div id="nugget-editor"></div>
@@ -430,6 +424,19 @@
       </div>
       <div class="ng-settings-section" style="margin-top:8px">
         <button class="ng-logout-btn" onclick="handleLogout()">Log Out</button>
+      </div>
+      <div class="ng-settings-section" style="margin-top:8px">
+        <div class="ng-card-label" style="color:#B45309;">Account Management</div>
+        <div class="ng-warning-box">
+          <div class="ng-warning-title">Change Email Address</div>
+          <div class="ng-warning-desc">Your current email: <strong id="current-email-display"></strong></div>
+          <div class="ng-warning-label">New Email Address</div>
+          <input class="ng-input" type="email" id="settings-new-email" placeholder="Enter new email address" autocomplete="off" style="border-color:#F59E0B;" />
+          <div class="ng-warning-desc">A confirmation link will be sent to your new address before the change takes effect.</div>
+          <div class="ng-success-msg" id="email-change-success">✓ Confirmation link sent to your new email!</div>
+          <div class="auth-error" id="email-change-error" style="margin-bottom:4px;"></div>
+          <button class="ng-warning-save" onclick="changeEmail()">Update Email Address</button>
+        </div>
       </div>
       <div class="ng-settings-section" style="margin-top:8px">
         <div class="ng-card-label" style="color:#DC2626;">Danger Zone</div>
@@ -493,6 +500,7 @@ let selectedType = 'reps';
 let isSignup = false;
 let weekLogs = [];
 let appLoaded = false; // Guard against double loadApp() on session restore
+let isRecoveryMode = false; // Guard against dashboard bypass during password recovery
 const DEFAULT_NUGGETS = [
   { label: '20 Squats',    emoji: '🦵', type: 'reps',    value: 20 },
   { label: '1 Min Plank',  emoji: '⏱',  type: 'minutes', value: 1  },
@@ -515,14 +523,18 @@ async function boot() {
   }
   sb.auth.onAuthStateChange(async (event, session) => {
     if (event === 'PASSWORD_RECOVERY') {
+      // Lock routing — user must complete password reset before accessing dashboard
+      isRecoveryMode = true;
       hideLoader();
       showScreen('screen-auth');
       showNewPasswordScreen();
     } else if (event === 'SIGNED_IN' && session) {
+      if (isRecoveryMode) return; // Block dashboard access until password is reset
       currentUser = session.user;
-      await loadApp(); // appLoaded guard inside loadApp prevents double execution
+      await loadApp();
     } else if (event === 'SIGNED_OUT') {
-      appLoaded = false; // Reset so next login loads fresh
+      appLoaded = false;
+      isRecoveryMode = false;
       currentUser = null;
       currentProfile = null;
       showScreen('screen-auth');
@@ -674,24 +686,27 @@ async function submitNewPassword() {
   btn.textContent = 'Updating...';
   const { error } = await sb.auth.updateUser({ password: pw });
   if (error) {
+    // Strict block — show error and keep user on reset screen, no dashboard access
     errEl.textContent = error.message;
     errEl.classList.add('show');
     btn.disabled = false;
     btn.textContent = 'Update Password';
-  } else {
-    successEl.textContent = '✓ Password updated! Taking you to the app...';
-    successEl.classList.add('show');
-    // Small delay so user can read the success message, then load app
-    setTimeout(async () => {
-      const { data: { session } } = await sb.auth.getSession();
-      if (session) {
-        currentUser = session.user;
-        await loadApp();
-      } else {
-        backToLogin();
-      }
-    }, 1800);
+    return; // Hard stop — never proceed to dashboard on error
   }
+  // Only reach here on confirmed success
+  isRecoveryMode = false; // Unlock normal routing
+  successEl.textContent = '✓ Password updated! Taking you to the app...';
+  successEl.classList.add('show');
+  setTimeout(async () => {
+    const { data: { session } } = await sb.auth.getSession();
+    if (session) {
+      currentUser = session.user;
+      appLoaded = false; // Allow fresh load
+      await loadApp();
+    } else {
+      backToLogin();
+    }
+  }, 1800);
 }
 
 async function sendPasswordReset() {
@@ -818,13 +833,19 @@ async function saveProfile() {
   const nickname = document.getElementById('settings-nickname').value.trim();
   const anchor = document.getElementById('settings-anchor').value.trim();
   if (!nickname) return;
-  const { error } = await sb.from('profiles').upsert({ id: currentUser.id, nickname, habit_anchor: anchor || null, updated_at: new Date().toISOString() });
+  // Use update not upsert — profile row always exists (created by DB trigger at signup)
+  const { error } = await sb
+    .from('profiles')
+    .update({ nickname, habit_anchor: anchor || null, updated_at: new Date().toISOString() })
+    .eq('id', currentUser.id);
   if (!error) {
     currentProfile = { ...currentProfile, nickname, habit_anchor: anchor };
     updateWelcome();
     const msg = document.getElementById('settings-success');
     msg.classList.add('show');
     setTimeout(() => msg.classList.remove('show'), 2500);
+  } else {
+    console.error('saveProfile error:', error.message);
   }
 }
 
