@@ -25,10 +25,9 @@
     }
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
     html, body { height: 100%; background: var(--ng-bg); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: var(--ng-text); overscroll-behavior: none; }
-    #app { width: 100%; max-width: 100%; min-height: 100vh; background: var(--ng-bg); position: relative; overflow: hidden; }
-
+    #app { width: 100%; max-width: 100%; min-height: 100vh; min-height: 100dvh; background: var(--ng-bg); position: relative; overflow: hidden; }
     /* ── SCREENS ── */
-    .screen { display: none; flex-direction: column; min-height: 100vh; }
+    .screen { display: none; flex-direction: column; min-height: 100vh; min-height: 100dvh; }
     .screen.active { display: flex; }
 
     /* ── AUTH SCREEN ── */
@@ -476,6 +475,7 @@
 // ─────────────────────────────────────────
 const SUPABASE_URL = 'https://iliajkjokfgudsqlskvs.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_uouHgaK4VycAnc2wO0wUfw_0lpYXNGG';
+const APP_URL = 'https://antloh68.github.io/nuggercise'; // Single source of truth for all redirects
 
 const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
@@ -492,6 +492,7 @@ let selectedFeeling = 0;
 let selectedType = 'reps';
 let isSignup = false;
 let weekLogs = [];
+let appLoaded = false; // Guard against double loadApp() on session restore
 const DEFAULT_NUGGETS = [
   { label: '20 Squats',    emoji: '🦵', type: 'reps',    value: 20 },
   { label: '1 Min Plank',  emoji: '⏱',  type: 'minutes', value: 1  },
@@ -514,14 +515,14 @@ async function boot() {
   }
   sb.auth.onAuthStateChange(async (event, session) => {
     if (event === 'PASSWORD_RECOVERY') {
-      // User clicked the reset link in their email
       hideLoader();
       showScreen('screen-auth');
       showNewPasswordScreen();
     } else if (event === 'SIGNED_IN' && session) {
       currentUser = session.user;
-      await loadApp();
+      await loadApp(); // appLoaded guard inside loadApp prevents double execution
     } else if (event === 'SIGNED_OUT') {
+      appLoaded = false; // Reset so next login loads fresh
       currentUser = null;
       currentProfile = null;
       showScreen('screen-auth');
@@ -530,6 +531,8 @@ async function boot() {
 }
 
 async function loadApp() {
+  if (appLoaded) return; // Halt duplicate execution on session restore
+  appLoaded = true;
   await Promise.all([loadProfile(), loadPhrases(), loadNuggets()]);
   await refreshDashboard();
   hideLoader();
@@ -702,7 +705,7 @@ async function sendPasswordReset() {
   btn.disabled = true;
   btn.textContent = 'Sending...';
   const { error } = await sb.auth.resetPasswordForEmail(email, {
-    redirectTo: window.location.origin + window.location.pathname
+    redirectTo: APP_URL
   });
   if (error) {
     errEl.textContent = error.message;
@@ -740,7 +743,10 @@ async function handleAuth() {
     const { data, error } = await sb.auth.signUp({
       email,
       password,
-      options: { data: { nickname, habit_anchor: anchor || null } }
+      options: {
+        data: { nickname, habit_anchor: anchor || null },
+        emailRedirectTo: APP_URL
+      }
     });
     btn.disabled = false;
     btn.textContent = 'Create Account';
@@ -778,7 +784,7 @@ async function handleLogout() {
 async function loadProfile() {
   const { data } = await sb.from('profiles').select('*').eq('id', currentUser.id).single();
   // On first login after email confirmation, apply nickname and anchor from signup metadata
-  if (data && (!data.nickname || data.nickname === currentUser.email?.split('@')[0])) {
+  if (data && (!data.nickname || data.nickname === currentUser.email?.split('@')?.[0])) {
     const meta = currentUser.user_metadata || {};
     if (meta.nickname) {
       const updates = {
@@ -1193,12 +1199,8 @@ function quickFill(btn, type, value, desc) {
   setType(type);
   document.getElementById('log-value').value = value;
   const descInput = document.getElementById('log-desc');
-  descInput.value = '';
-  const chars = [...desc];
-  chars.forEach((c, i) => setTimeout(() => {
-    descInput.value += c;
-    document.getElementById('char-count').textContent = descInput.value.length;
-  }, i * 30));
+  descInput.value = desc; // Instant fill — prevents truncation if user taps Log It quickly
+  document.getElementById('char-count').textContent = desc.length;
 }
 
 function setType(t) {
