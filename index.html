@@ -210,7 +210,20 @@
     .history-feel { font-size: 16px; }
     .history-empty { font-size: 14px; color: var(--ng-subtle); text-align: center; padding: 24px 0; }
 
-    /* ── LOADER ── */
+    /* ── DATE NAVIGATION ── */
+    .ng-date-nav { display: flex; align-items: center; justify-content: space-between; padding: 4px 0 8px; }
+    .ng-date-nav-btn { background: none; border: 1.5px solid var(--ng-border); border-radius: 8px; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; font-size: 16px; cursor: pointer; color: var(--ng-text); transition: background 0.12s; }
+    .ng-date-nav-btn:active { background: var(--ng-bg); }
+    .ng-date-nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+    .ng-date-nav-label { font-size: 14px; font-weight: 600; color: var(--ng-text); text-align: center; flex: 1; }
+    /* ── ACTIVE DAY BUBBLE ── */
+    .ng-day-bubble.active { outline: 2.5px solid var(--ng-orange); outline-offset: 2px; }
+    /* ── PASSWORD TOGGLE ── */
+    .ng-pw-wrap { position: relative; width: 100%; }
+    .ng-pw-wrap .auth-input { padding-right: 48px; width: 100%; }
+    .ng-pw-toggle-btn { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; font-size: 18px; color: var(--ng-muted); padding: 4px; line-height: 1; }
+    .ng-pw-toggle-row { display: flex; align-items: center; justify-content: flex-end; gap: 6px; margin-top: -4px; margin-bottom: 4px; }
+    .ng-pw-toggle-link { font-size: 13px; color: var(--ng-orange); cursor: pointer; background: none; border: none; padding: 0; font-weight: 500; }
     #app-loader { position: fixed; inset: 0; background: var(--ng-surface); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; z-index: 100; }
     .loader-logo { font-size: 48px; }
     .loader-title { font-size: 24px; font-weight: 700; color: var(--ng-orange); }
@@ -251,8 +264,11 @@
         <input class="auth-input" type="email" id="auth-email" placeholder="Email address" autocomplete="email" />
         <input class="auth-input" type="password" id="auth-password" placeholder="Password" autocomplete="current-password" />
         <div id="forgot-pw-link" class="auth-forgot"><a onclick="showForgotPassword()">Forgot password?</a></div>
-        <div id="confirm-pw-wrap" style="display:none;">
+        <div id="confirm-pw-wrap" style="display:none; flex-direction:column; gap:10px;">
           <input class="auth-input" type="password" id="auth-password-confirm" placeholder="Repeat password" autocomplete="new-password" />
+          <div class="ng-pw-toggle-row">
+            <button class="ng-pw-toggle-link" type="button" onclick="toggleSignupPasswords()" id="signup-pw-toggle-btn">👁 Show passwords</button>
+          </div>
         </div>
         <button class="auth-btn" id="auth-btn" onclick="handleAuth()">Log in</button>
         <div class="auth-switch" id="auth-switch">
@@ -295,7 +311,10 @@
         <div class="auth-error" id="new-pw-error" style="width:100%;"></div>
         <div class="auth-success" id="new-pw-success" style="width:100%;"></div>
         <input class="auth-input" type="password" id="new-pw-input" placeholder="New password" autocomplete="new-password" style="width:100%; margin-bottom:10px;" />
-        <input class="auth-input" type="password" id="new-pw-confirm" placeholder="Repeat new password" autocomplete="new-password" style="width:100%; margin-bottom:14px;" />
+        <input class="auth-input" type="password" id="new-pw-confirm" placeholder="Repeat new password" autocomplete="new-password" style="width:100%; margin-bottom:8px;" />
+        <div class="ng-pw-toggle-row" style="margin-bottom:14px;">
+          <button class="ng-pw-toggle-link" type="button" onclick="toggleResetPasswords()" id="reset-pw-toggle-btn">👁 Show passwords</button>
+        </div>
         <button class="auth-btn" id="new-pw-btn" onclick="submitNewPassword()">Update Password</button>
       </div>
     </div>
@@ -313,7 +332,7 @@
         <div class="ng-anchor-pill" id="dash-anchor" style="display:none"></div>
       </div>
       <div class="ng-card">
-        <div class="ng-card-label">7-Day Progress</div>
+        <div class="ng-card-label">This Week</div>
         <div class="ng-week-grid" id="week-grid"></div>
       </div>
       <div class="ng-card">
@@ -336,7 +355,12 @@
         </div>
       </div>
       <div class="ng-card">
-        <div class="ng-card-label">Today's Momentum</div>
+        <div class="ng-date-nav">
+          <button class="ng-date-nav-btn" id="nav-prev" onclick="navigateDay(-1)" aria-label="Previous day">←</button>
+          <div class="ng-date-nav-label" id="nav-date-label">Today</div>
+          <button class="ng-date-nav-btn" id="nav-next" onclick="navigateDay(1)" aria-label="Next day" disabled>→</button>
+        </div>
+        <div class="ng-card-label" id="momentum-label">Today's Momentum</div>
         <div id="today-log"><div class="ng-log-empty">Nothing yet — tap + to log your first nugget!</div></div>
       </div>
     </div>
@@ -499,8 +523,9 @@ let selectedFeeling = 0;
 let selectedType = 'reps';
 let isSignup = false;
 let weekLogs = [];
-let appLoaded = false; // Guard against double loadApp() on session restore
-let isRecoveryMode = false; // Guard against dashboard bypass during password recovery
+let appLoaded = false;
+let isRecoveryMode = false;
+let activeDate = new Date(); // Currently viewed date on dashboard
 const DEFAULT_NUGGETS = [
   { label: '20 Squats',    emoji: '🦵', type: 'reps',    value: 20 },
   { label: '1 Min Plank',  emoji: '⏱',  type: 'minutes', value: 1  },
@@ -649,7 +674,25 @@ function backToLogin() {
   setAuthError('');
 }
 
-function showForgotPassword() {
+function toggleSignupPasswords() {
+  const pw = document.getElementById('auth-password');
+  const confirm = document.getElementById('auth-password-confirm');
+  const btn = document.getElementById('signup-pw-toggle-btn');
+  const show = pw.type === 'password';
+  pw.type = show ? 'text' : 'password';
+  confirm.type = show ? 'text' : 'password';
+  btn.textContent = show ? '🙈 Hide passwords' : '👁 Show passwords';
+}
+
+function toggleResetPasswords() {
+  const pw = document.getElementById('new-pw-input');
+  const confirm = document.getElementById('new-pw-confirm');
+  const btn = document.getElementById('reset-pw-toggle-btn');
+  const show = pw.type === 'password';
+  pw.type = show ? 'text' : 'password';
+  confirm.type = show ? 'text' : 'password';
+  btn.textContent = show ? '🙈 Hide passwords' : '👁 Show passwords';
+}
   document.getElementById('auth-main').style.display = 'none';
   document.getElementById('auth-forgot-panel').style.display = 'block';
   document.getElementById('forgot-email').value = '';
@@ -1023,40 +1066,113 @@ function pickPhrase() {
 async function refreshDashboard() {
   updateWelcome();
   const now = new Date();
-  const sevenDaysAgo = new Date(now);
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
-  sevenDaysAgo.setHours(0, 0, 0, 0);
 
-  const { data: logs } = await sb
+  // Current calendar week Sun–Sat for streak, stats, and week grid
+  const weekStart = new Date(now);
+  const dayOfWeek = now.getDay(); // 0=Sun
+  weekStart.setDate(now.getDate() - dayOfWeek);
+  weekStart.setHours(0, 0, 0, 0);
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate() + 6);
+  weekEnd.setHours(23, 59, 59, 999);
+
+  // Fetch current week logs for streak + stats + grid (always reflects real current week)
+  const { data: wLogs } = await sb
     .from('nuggercises')
     .select('*')
     .eq('user_id', currentUser.id)
-    .gte('logged_at', sevenDaysAgo.toISOString())
+    .gte('logged_at', weekStart.toISOString())
+    .lte('logged_at', weekEnd.toISOString())
+    .order('logged_at', { ascending: false });
+  weekLogs = wLogs || [];
+
+  // Fetch logs for the active date (may differ from today when navigating)
+  const activeDayStart = new Date(activeDate);
+  activeDayStart.setHours(0, 0, 0, 0);
+  const activeDayEnd = new Date(activeDate);
+  activeDayEnd.setHours(23, 59, 59, 999);
+
+  const { data: dayLogs } = await sb
+    .from('nuggercises')
+    .select('*')
+    .eq('user_id', currentUser.id)
+    .gte('logged_at', activeDayStart.toISOString())
+    .lte('logged_at', activeDayEnd.toISOString())
     .order('logged_at', { ascending: false });
 
-  weekLogs = logs || [];
   buildWeekGrid(weekLogs);
   buildStreak(weekLogs);
   buildStats(weekLogs);
-  buildTodayLog(weekLogs);
+  buildDayLog(dayLogs || []);
+  updateDateNav();
+}
+
+function updateDateNav() {
+  const now = new Date();
+  const isToday = activeDate.toDateString() === now.toDateString();
+  const yesterday = new Date(now); yesterday.setDate(now.getDate() - 1);
+  const isYesterday = activeDate.toDateString() === yesterday.toDateString();
+
+  // Update label
+  const label = document.getElementById('nav-date-label');
+  if (isToday) label.textContent = 'Today';
+  else if (isYesterday) label.textContent = 'Yesterday';
+  else label.textContent = activeDate.toLocaleDateString('en-SG', { day: 'numeric', month: 'short' });
+
+  // Update momentum header
+  const momentumLabel = document.getElementById('momentum-label');
+  if (isToday) momentumLabel.textContent = "Today's Momentum";
+  else if (isYesterday) momentumLabel.textContent = "Yesterday's Momentum";
+  else momentumLabel.textContent = 'Momentum for ' + activeDate.toLocaleDateString('en-SG', { day: 'numeric', month: 'short' });
+
+  // Disable next arrow if viewing today
+  document.getElementById('nav-next').disabled = isToday;
+
+  // Re-highlight active bubble in week grid
+  document.querySelectorAll('.ng-day-bubble').forEach(b => {
+    b.classList.toggle('active', b.dataset.date === activeDate.toDateString());
+  });
+}
+
+function navigateDay(delta) {
+  const now = new Date();
+  const newDate = new Date(activeDate);
+  newDate.setDate(activeDate.getDate() + delta);
+  // Block navigation into the future
+  if (newDate > now) return;
+  activeDate = newDate;
+  refreshDashboard();
+}
+
+function jumpToDate(date) {
+  const now = new Date();
+  if (date > now) return;
+  activeDate = new Date(date);
+  refreshDashboard();
 }
 
 function buildWeekGrid(logs) {
   const grid = document.getElementById('week-grid');
   grid.innerHTML = '';
-  const days = ['M','T','W','T','F','S','S'];
+  const days = ['S','M','T','W','T','F','S']; // Sun–Sat
   const now = new Date();
-  const todayDay = now.getDay();
-  const mondayOffset = (todayDay === 0) ? 6 : todayDay - 1;
+  // Find Sunday of current week
+  const sunday = new Date(now);
+  sunday.setDate(now.getDate() - now.getDay());
+  sunday.setHours(0, 0, 0, 0);
 
   for (let i = 0; i < 7; i++) {
-    const d = new Date(now);
-    d.setDate(now.getDate() - mondayOffset + i);
-    d.setHours(0,0,0,0);
-    const dEnd = new Date(d); dEnd.setHours(23,59,59,999);
+    const d = new Date(sunday);
+    d.setDate(sunday.getDate() + i);
+    d.setHours(0, 0, 0, 0);
+    const dEnd = new Date(d); dEnd.setHours(23, 59, 59, 999);
     const isFuture = d > now;
     const isToday = d.toDateString() === now.toDateString();
-    const hasLog = logs.some(l => { const ld = new Date(l.logged_at); return ld >= d && ld <= dEnd; });
+    const isActive = d.toDateString() === activeDate.toDateString();
+    const hasLog = logs.some(l => {
+      const ld = new Date(l.logged_at);
+      return ld >= d && ld <= dEnd;
+    });
 
     const col = document.createElement('div');
     col.className = 'ng-day';
@@ -1065,14 +1181,25 @@ function buildWeekGrid(logs) {
     lbl.textContent = days[i];
     const bubble = document.createElement('div');
     bubble.className = 'ng-day-bubble';
-    if (isFuture) { bubble.classList.add('future'); bubble.textContent = '·'; }
-    else if (hasLog) { bubble.classList.add('done'); bubble.textContent = '🔥'; }
-    else { bubble.classList.add('miss'); bubble.textContent = isToday ? '📊' : '❌'; }
-    if (hasLog || !isFuture) {
-      bubble.onclick = () => openHistory(d);
-      bubble.title = 'View logs for this day';
+    bubble.dataset.date = d.toDateString(); // for active state matching
+    if (isFuture) {
+      bubble.classList.add('future');
+      bubble.textContent = '·';
+    } else if (hasLog) {
+      bubble.classList.add('done');
+      bubble.textContent = '🔥';
+    } else {
+      bubble.classList.add('miss');
+      bubble.textContent = isToday ? '📊' : '❌';
     }
-    col.appendChild(lbl); col.appendChild(bubble);
+    if (isActive) bubble.classList.add('active');
+    // Every non-future day is tappable to jump to that date
+    if (!isFuture) {
+      bubble.style.cursor = 'pointer';
+      bubble.onclick = () => jumpToDate(d);
+    }
+    col.appendChild(lbl);
+    col.appendChild(bubble);
     grid.appendChild(col);
   }
 }
@@ -1107,22 +1234,19 @@ function buildStats(logs) {
   document.getElementById('stat-mins').textContent = totalMins;
 }
 
-function buildTodayLog(logs) {
+function buildDayLog(logs) {
   const container = document.getElementById('today-log');
-  const now = new Date();
-  const todayStart = new Date(now); todayStart.setHours(0,0,0,0);
-  const todayLogs = logs.filter(l => new Date(l.logged_at) >= todayStart);
-  if (!todayLogs.length) {
-    container.innerHTML = '';
+  container.innerHTML = '';
+  const isToday = activeDate.toDateString() === new Date().toDateString();
+  if (!logs.length) {
     const empty = document.createElement('div');
     empty.className = 'ng-log-empty';
-    empty.textContent = 'Nothing yet — tap + to log your first nugget!';
+    empty.textContent = isToday ? 'Nothing yet — tap + to log your first nugget!' : 'No logs for this day.';
     container.appendChild(empty);
     return;
   }
-  container.innerHTML = '';
   const FEELINGS = ['','😞','😐','🙂','😁','🤩'];
-  todayLogs.forEach(l => {
+  logs.forEach(l => {
     const item = document.createElement('div');
     item.className = 'ng-log-item';
     const time = document.createElement('div');
@@ -1133,7 +1257,7 @@ function buildTodayLog(logs) {
     badge.textContent = l.metric_value + (l.metric_type === 'reps' ? ' Reps' : ' Min');
     const desc = document.createElement('div');
     desc.className = 'ng-log-desc';
-    desc.textContent = l.description || '—'; // textContent = safe, no XSS possible
+    desc.textContent = l.description || '—';
     const feel = document.createElement('div');
     feel.className = 'ng-log-feel';
     feel.textContent = FEELINGS[l.feeling_rating] || '';
@@ -1411,6 +1535,9 @@ function showScreen(id) {
   document.getElementById(id).classList.add('active');
   if (id === 'screen-log') initLogForm();
   if (id === 'screen-settings') renderNuggetEditor();
+  if (id === 'screen-dashboard') {
+    activeDate = new Date(); // Reset to today when returning to dashboard
+  }
   window.scrollTo(0, 0);
 }
 
