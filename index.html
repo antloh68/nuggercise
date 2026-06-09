@@ -693,6 +693,8 @@ function toggleResetPasswords() {
   confirm.type = show ? 'text' : 'password';
   btn.textContent = show ? '🙈 Hide passwords' : '👁 Show passwords';
 }
+
+function showForgotPassword() {
   document.getElementById('auth-main').style.display = 'none';
   document.getElementById('auth-forgot-panel').style.display = 'block';
   document.getElementById('forgot-email').value = '';
