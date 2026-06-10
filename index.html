@@ -266,7 +266,7 @@
         <div id="forgot-pw-link" class="auth-forgot"><a onclick="showForgotPassword()">Forgot password?</a></div>
         <div id="confirm-pw-wrap" style="display:none; flex-direction:column; gap:10px;">
           <input class="auth-input" type="password" id="auth-password-confirm" placeholder="Repeat password" autocomplete="new-password" />
-          <div class="ng-pw-toggle-row">
+          <div class="ng-pw-toggle-row" style="justify-content:flex-start; margin-top:4px;">
             <button class="ng-pw-toggle-link" type="button" onclick="toggleSignupPasswords()" id="signup-pw-toggle-btn">👁 Show passwords</button>
           </div>
         </div>
@@ -312,7 +312,7 @@
         <div class="auth-success" id="new-pw-success" style="width:100%;"></div>
         <input class="auth-input" type="password" id="new-pw-input" placeholder="New password" autocomplete="new-password" style="width:100%; margin-bottom:10px;" />
         <input class="auth-input" type="password" id="new-pw-confirm" placeholder="Repeat new password" autocomplete="new-password" style="width:100%; margin-bottom:8px;" />
-        <div class="ng-pw-toggle-row" style="margin-bottom:14px;">
+        <div class="ng-pw-toggle-row" style="justify-content:flex-start; margin-bottom:14px;">
           <button class="ng-pw-toggle-link" type="button" onclick="toggleResetPasswords()" id="reset-pw-toggle-btn">👁 Show passwords</button>
         </div>
         <button class="auth-btn" id="new-pw-btn" onclick="submitNewPassword()">Update Password</button>
@@ -874,14 +874,19 @@ async function changeEmail() {
   errEl.textContent = '';
   if (!newEmail) { errEl.textContent = 'Please enter a new email address.'; errEl.classList.add('show'); return; }
   if (newEmail === currentUser.email) { errEl.textContent = 'That is already your current email address.'; errEl.classList.add('show'); return; }
-  const { error } = await sb.auth.updateUser({ email: newEmail });
+  const { error } = await sb.auth.updateUser(
+    { email: newEmail },
+    { emailRedirectTo: APP_URL }
+  );
   if (error) {
     errEl.textContent = error.message;
     errEl.classList.add('show');
   } else {
+    // Update success message to explain both emails
+    successEl.textContent = '✓ Two emails sent — check your new address to confirm, and your old address for a security notice.';
     successEl.classList.add('show');
     document.getElementById('settings-new-email').value = '';
-    setTimeout(() => successEl.classList.remove('show'), 4000);
+    setTimeout(() => successEl.classList.remove('show'), 6000);
   }
 }
 
