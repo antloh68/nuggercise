@@ -538,16 +538,27 @@ let quickNuggets = JSON.parse(JSON.stringify(DEFAULT_NUGGETS));
 // BOOT
 // ─────────────────────────────────────────
 async function boot() {
-  // Detect password recovery BEFORE session check — Supabase puts type=recovery
-  // in the URL hash when user clicks the reset link in their email.
-  // Must be checked first or getSession() will load the dashboard immediately.
+  // Detect special link types BEFORE session check
+  // Supabase embeds type= in the URL hash for recovery and email_change links
   const hashParams = new URLSearchParams(window.location.hash.replace('#', '?').slice(1));
   const urlType = hashParams.get('type');
   if (urlType === 'recovery') {
     isRecoveryMode = true;
     hideLoader();
     showScreen('screen-auth');
-    // Wait for onAuthStateChange to fire PASSWORD_RECOVERY and show the form
+    // Wait for onAuthStateChange to fire PASSWORD_RECOVERY
+  } else if (urlType === 'email_change') {
+    // Email change confirmed — clear hash, refresh session, reload app with new email
+    window.history.replaceState(null, '', window.location.pathname);
+    const { data: { session } } = await sb.auth.getSession();
+    if (session) {
+      currentUser = session.user; // Now carries the updated email
+      appLoaded = false;
+      await loadApp();
+    } else {
+      hideLoader();
+      showScreen('screen-auth');
+    }
   } else {
     const { data: { session } } = await sb.auth.getSession();
     if (session) {
@@ -564,8 +575,17 @@ async function boot() {
       hideLoader();
       showScreen('screen-auth');
       showNewPasswordScreen();
+    } else if (event === 'USER_UPDATED' && session) {
+      // Fires when email change is confirmed — refresh user object with new email
+      currentUser = session.user;
+      // Update displayed email in settings if open
+      const emailEl = document.getElementById('current-email-display');
+      if (emailEl) emailEl.textContent = currentUser.email || '';
+      // Update settings email input
+      const newEmailInput = document.getElementById('settings-new-email');
+      if (newEmailInput) newEmailInput.value = '';
     } else if (event === 'SIGNED_IN' && session) {
-      if (isRecoveryMode) return; // Block dashboard until password reset complete
+      if (isRecoveryMode) return;
       currentUser = session.user;
       await loadApp();
     } else if (event === 'SIGNED_OUT') {
