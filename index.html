@@ -903,7 +903,7 @@ async function changeEmail() {
     errEl.classList.add('show');
   } else {
     // Update success message to explain both emails
-    successEl.textContent = '✓ Two emails sent — check your new address to confirm, and your old address for a security notice.';
+    successEl.textContent = '✓ Two emails sent — check both your new and old address to confirm.';
     successEl.classList.add('show');
     document.getElementById('settings-new-email').value = '';
     setTimeout(() => successEl.classList.remove('show'), 6000);
