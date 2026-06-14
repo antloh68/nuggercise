@@ -1,0 +1,247 @@
+// ============================================================
+// Nuggercise — Supabase Edge Function: send-nudge
+// Paste this entire file into the Supabase Edge Function editor
+// Function name: send-nudge
+// ============================================================
+
+import { createTransport } from "npm:nodemailer";
+import { createClient } from "npm:@supabase/supabase-js";
+
+// Global Cross-Origin Resource Sharing (CORS) headers configuration
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+Deno.serve(async (req) => {
+  // Handle preflight browser pre-checks
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+
+  try {
+    const body = await req.json();
+    
+    // --- SECURE ENVIRONMENT VARIABLE CHECK ---
+    // Extract and clean token strings to verify administrative crons
+    const incomingToken = body.token?.trim().replace(/['"]/g, "");
+    const secretPassphrase = Deno.env.get("FUNCTION_SECRET")?.trim(); 
+
+    // Reject unauthenticated external payloads
+    if (!incomingToken || !secretPassphrase || incomingToken !== secretPassphrase) {
+      console.log("Security Alert: Token mismatch or server secret missing.");
+      return new Response(
+        JSON.stringify({ error: "Unauthorized: Secure token mismatch." }), 
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const { type } = body; 
+
+    // Create an admin client using the service role key (server-side only — never in frontend)
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+    const supabase = createClient(supabaseUrl, serviceRoleKey);
+
+    // --- FETCH ALL SYSTEM USERS & COMPLEMENTARY PROFILE NICKNAMES ---
+    // Fetch system accounts from the secure Supabase Auth table
+    const { data: authData, error: authError } = await supabase.auth.admin.listUsers();
+    if (authError) throw new Error(`Auth system fetch failed: ${authError.message}`);
+
+    // Fetch corresponding profile records to get nicknames
+    const { data: profileData, error: profileError } = await supabase
+      .from("profiles")
+      .select("id, nickname");
+    if (profileError) throw new Error(`Profiles schema fetch failed: ${profileError.message}`);
+
+    // Map profiles into an easy-lookup key-value dictionary
+    const profileMap = new Map(profileData?.map(p => [p.id, p.nickname]));
+
+    // Production action redirect landing point URL
+    const appUrl = "https://antloh68.github.io/nuggercise/"; 
+
+    // Setup secure SMTP nodemailer transporter pipeline via Gmail TLS
+    const transporter = createTransport({
+      host: "smtp.gmail.com",
+      port: 465,
+      secure: true,
+      auth: {
+        user: Deno.env.get("GMAIL_USER"),
+        pass: Deno.env.get("GMAIL_APP_PASSWORD"),
+      },
+    });
+
+    let processedCount = 0;
+
+    // =========================================================================
+    // ROUTE A: DAILY NUDGE (ONLY INACTIVE USERS IN THE LAST 24 HOURS)
+    // =========================================================================
+    if (type === "daily") {
+      // Establish target date threshold exactly 24 hours ago
+      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+      // Query database for all users who have logged activity in the last 24 hours
+      const { data: activeLogs, error: logError } = await supabase
+        .from("nuggercises")
+        .select("user_id")
+        .gte("logged_at", twentyFourHoursAgo);
+
+      if (logError) throw new Error(`Failed to check active timeline metrics: ${logError.message}`);
+      
+      // Store active user IDs in a Set for high-performance lookup filtering
+      const activeUserIds = new Set(activeLogs?.map(log => log.user_id));
+
+      // Fallback default message in case dynamic nudge pool lookup fails
+      let motivationalPhrase = "Don't break your streak. Log your workout actions inside the Nuggercise tracker today!";
+      
+      // Pull dynamic quotes from database and iterate their tracking metric usage counters
+      try {
+        const { data: nudgePhrases } = await supabase.from("email_nudges").select("id, phrase, times_used");
+        if (nudgePhrases && nudgePhrases.length > 0) {
+          const randomIndex = Math.floor(Math.random() * nudgePhrases.length);
+          const selectedNudge = nudgePhrases[randomIndex];
+          motivationalPhrase = selectedNudge.phrase;
+
+          await supabase.from("email_nudges").update({ times_used: (selectedNudge.times_used || 0) + 1 }).eq("id", selectedNudge.id);
+        }
+      } catch (err) {
+        console.error("Non-blocking notification phrase error: ", err.message);
+      }
+
+      // Loop over every user individually to maintain isolation and apply custom nicknames
+      for (const user of authData.users) {
+        // Skip incomplete users or users who have already been active today
+        if (!user.email || activeUserIds.has(user.id)) continue; 
+
+        const nickname = profileMap.get(user.id) || "Athlete";
+
+        const emailBodyHtml = `
+          <div style="background-color: #F1F5F9; padding: 40px 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+            <div style="max-width: 520px; margin: 0 auto; background-color: #FFFFFF; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); overflow: hidden; border: 1px solid #E2E8F0;">
+              <div style="background-color: #1E293B; padding: 32px 24px; text-align: center;">
+                <span style="font-size: 28px; margin: 0; font-weight: 800; color: #FFFFFF; letter-spacing: -0.02em;">🔥 Nuggercise</span>
+                <p style="margin: 4px 0 0 0; font-size: 13px; color: #FF6B35; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;">Tiny moves. Massive streaks.</p>
+              </div>
+              <div style="padding: 32px 32px 40px 32px;">
+                <h2 style="color: #1E293B; font-size: 22px; font-weight: 700; margin-top: 0; margin-bottom: 12px;">Hey ${nickname},</h2>
+                <p style="font-size: 16px; color: #334155; line-height: 1.6; margin-bottom: 24px; font-style: italic; padding: 16px; background-color: #F8FAFC; border-left: 4px solid #FF6B35; border-radius: 0 8px 8px 0;">
+                  "${motivationalPhrase}"
+                </p>
+                <p style="font-size: 15px; color: #64748B; line-height: 1.6; margin-bottom: 32px;">Protect your consistency metrics. Open up your app layout dashboard and log your active minutes right now!</p>
+                <div style="text-align: center; margin: 32px 0 16px 0;">
+                  <a href="${appUrl}" style="background-color: #FF6B35; color: #FFFFFF; font-weight: 700; font-size: 15px; padding: 14px 32px; text-decoration: none; border-radius: 10px; display: inline-block;">Log Your Progress Now</a>
+                </div>
+              </div>
+              <div style="background-color: #F8FAFC; padding: 24px; border-top: 1px solid #E2E8F0; text-align: center;">
+                <p style="font-size: 12px; color: #64748B; margin: 0; font-weight: 500;">Tiny moves. Massive streaks.</p>
+                <p style="font-size: 11px; color: #94A3B8; margin: 6px 0 0 0;">&copy; 2026 Nuggercise App. All rights reserved.</p>
+              </div>
+            </div>
+          </div>
+        `;
+
+        // Send individual isolated email message securely
+        await transporter.sendMail({
+          from: `"Nuggercise App" <${Deno.env.get("GMAIL_USER")}>`,
+          to: user.email, 
+          subject: "🔥 Nuggercise: Time to Log Your Active Minutes!",
+          html: emailBodyHtml,
+        });
+        processedCount++;
+      }
+
+    // =========================================================================
+    // ROUTE B: WEEKLY SUMMARY (INDIVIDUAL STATS FOR THE PAST 7 DAYS ONLY)
+    // =========================================================================
+    } else if (type === "weekly") {
+      // Calculate timestamp exactly 7 days ago 
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+      // Fetch global logs created strictly within the rolling 7-day threshold 
+      const { data: recentLogs, error: rangeError } = await supabase
+        .from("nuggercises")
+        .select("user_id, metric_value, metric_type")
+        .gte("created_at", sevenDaysAgo);
+
+      if (rangeError) throw new Error(`Failed to filter rolling weekly timeline charts: ${rangeError.message}`);
+
+      // Loop through all users individually to compute personalized isolated statistics maps
+      for (const user of authData.users) {
+        if (!user.email) continue;
+
+        const nickname = profileMap.get(user.id) || "Athlete";
+
+        // Filter out global logs to compile specific stats belonging only to this user
+        const userSpecificLogs = recentLogs?.filter(log => log.user_id === user.id) || [];
+        
+        // Sum total logged actions, total repetitions, and total duration minutes
+        const totalNuggets = userSpecificLogs.length;
+        const totalReps = userSpecificLogs.filter(a => a.metric_type === 'reps').reduce((sum, curr) => sum + (curr.metric_value || 0), 0);
+        const totalMinutes = userSpecificLogs.filter(a => a.metric_type === 'minutes').reduce((sum, curr) => sum + (curr.metric_value || 0), 0);
+
+        const emailBodyHtml = `
+          <div style="background-color: #F1F5F9; padding: 40px 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+            <div style="max-width: 520px; margin: 0 auto; background-color: #FFFFFF; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); overflow: hidden; border: 1px solid #E2E8F0;">
+              <div style="background-color: #1E293B; padding: 32px 24px; text-align: center;">
+                <span style="font-size: 28px; margin: 0; font-weight: 800; color: #FFFFFF; letter-spacing: -0.02em;">📈 Nuggercise</span>
+                <p style="margin: 4px 0 0 0; font-size: 13px; color: #FF6B35; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;">Weekly Progress Summary</p>
+              </div>
+              <div style="padding: 32px 32px 40px 32px;">
+                <h2 style="color: #1E293B; font-size: 22px; font-weight: 700; margin-top: 0; margin-bottom: 12px; text-align: center;">Sensational Effort, ${nickname}!</h2>
+                <p style="font-size: 15px; text-align: center; color: #475569; line-height: 1.6; margin-bottom: 28px;">Here is your personal performance summary metrics tracked over the last 7 days:</p>
+                <div style="background-color: #F8FAFC; border-radius: 14px; padding: 8px 20px; margin: 24px 0; border: 1px solid #E2E8F0;">
+                  <table style="width: 100%; border-collapse: collapse;">
+                    <tr style="border-bottom: 1px solid #E2E8F0;">
+                      <td style="padding: 16px 0; color: #1E293B; font-weight: 600; font-size: 15px;">⚡ Nuggets Logged</td>
+                      <td style="padding: 16px 0; text-align: right; font-size: 18px; font-weight: 800; color: #FF6B35;">${totalNuggets}</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #E2E8F0;">
+                      <td style="padding: 16px 0; color: #1E293B; font-weight: 600; font-size: 15px;">🏋️‍♂️ Total Repetitions</td>
+                      <td style="padding: 16px 0; text-align: right; font-size: 18px; font-weight: 800; color: #1E293B;">${totalReps}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 16px 0; color: #1E293B; font-weight: 600; font-size: 15px;">⏱️ Active Duration</td>
+                      <td style="padding: 16px 0; text-align: right; font-size: 18px; font-weight: 800; color: #1E293B;">${totalMinutes} mins</td>
+                    </tr>
+                  </table>
+                </div>
+                <p style="font-size: 14px; color: #64748B; text-align: center; line-height: 1.6; margin-top: 28px; font-style: italic;">"Tiny habits compound into monumental long-term physical strength health gains. Keep anchoring your routines daily."</p>
+                <div style="text-align: center; margin: 24px 0 0 0;">
+                  <a href="${appUrl}" style="background-color: #FF6B35; color: #FFFFFF; font-weight: 700; font-size: 15px; padding: 12px 28px; text-decoration: none; border-radius: 10px; display: inline-block;">View Dashboard</a>
+                </div>
+              </div>
+              <div style="background-color: #F8FAFC; padding: 24px; border-top: 1px solid #E2E8F0; text-align: center;">
+                <p style="font-size: 12px; color: #64748B; margin: 0; font-weight: 500;">Built for tiny habits, scaling consistency.</p>
+                <p style="font-size: 11px; color: #94A3B8; margin: 6px 0 0 0;">&copy; 2026 Nuggercise App. All rights reserved.</p>
+              </div>
+            </div>
+          </div>
+        `;
+
+        // Send individual isolated weekly layout email
+        await transporter.sendMail({
+          from: `"Nuggercise App" <${Deno.env.get("GMAIL_USER")}>`,
+          to: user.email, 
+          subject: "📊 Your Nuggercise Weekly Progress Summary",
+          html: emailBodyHtml,
+        });
+        processedCount++;
+      }
+    } else {
+      return new Response(JSON.stringify({ error: "Invalid cron type trigger." }), { status: 400 });
+    }
+
+    // Return exact summary payload metrics of emails delivered successfully
+    return new Response(
+      JSON.stringify({ success: true, total_dispatched: processedCount }), 
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+
+  } catch (error) {
+    console.error(`Execution Error: ${error.message}`);
+    return new Response(
+      JSON.stringify({ error: error.message }), 
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+});

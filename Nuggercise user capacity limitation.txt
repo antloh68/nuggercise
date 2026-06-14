@@ -1,0 +1,69 @@
+### Nuggercise Architecture Documentation: User Capacity Limitations
+
+This document outlines the hard operational thresholds, infrastructure bottlenecks, and practical user capacity limits for the **Nuggercise** backend automation engine based on its current technical design.
+
+---
+
+### Architectural Bottleneck Overview
+
+The current implementation of the automated notification engine handles tracking checks, dynamic template building, database updates, and email distribution within a single execution block. While highly stable for smaller cohorts, this linear execution strategy introduces severe scaling limits.
+
+#### 1. The Execution Timeout Limit (The Immediate Ceiling)
+
+* **Technical Constraint:** Supabase Edge Functions enforce a strict **150-second (2.5 minute) wall-clock timeout** limit per request invocation.
+* **The Problem:** The notification script iterates through the system's users sequentially using a standard `for...of` loop:
+```typescript
+for (const user of authData.users) { ... await transporter.sendMail({...}); }
+
+```
+
+
+Each outbound email requires a synchronous network handshake via SMTP to secure, transmit, and close the socket connection with `smtp.gmail.com`. This network round-trip typically takes between **1.0 to 1.5 seconds per user**.
+* **Capacity Impact:** At an average of 1 second per user, processing a list of more than **150 users** will cause the function to exceed its execution window. Supabase will abruptly terminate the thread mid-run, leaving users down the line without notifications.
+
+#### 2. SMTP Mail Provider Rate Limits (The Gateway Wall)
+
+* **Technical Constraint:** The application relies on a personal Google Account via an application password for email transport (`smtp.gmail.com`).
+* **The Problem:** Free consumer Gmail accounts are strictly capped at a delivery threshold of **500 outgoing emails per rolling 24-hour window** to protect against automated spam behavior.
+* **Capacity Impact:** The moment the total active user base scales to a point where more than 500 emails are triggered in a single day (either via daily inactivity nudges or weekly progress reports), the SMTP transporter will be blocked. Google will throw authorization exceptions, causing the backend loop to crash completely.
+
+#### 3. Upstream Database Memory Strain
+
+* **Technical Constraint:** Supabase Edge Functions operate within strict memory limits (typically **150MB to 256MB** depending on the project tier).
+* **The Problem:** During the `weekly` summary routine, the function requests rolling historical tables across the app using a general open query:
+```typescript
+const { data: recentLogs } = await supabase.from("nuggercises").select("...").gte("created_at", sevenDaysAgo);
+
+```
+
+
+The logic then uses an in-memory filter array pass (`recentLogs?.filter(...)`) to isolate performance data for every individual profile. Furthermore, Supabase's underlying data routing layer (PostgREST) caps maximum single query payloads at **1,000 rows** by default.
+* **Capacity Impact:** If thousands of user logs accumulate within a 7-day period, the database payload will be clipped at 1,000 rows, rendering weekly analytics metrics inaccurate. If the dataset bypasses the limit, processing massive array structures entirely inside the function's volatile memory will risk an out-of-memory engine crash.
+
+---
+
+### Practical Scaling Capacity
+
+| Stage | User Count | System Status | Recommendation |
+| --- | --- | --- | --- |
+| **Pilot / Closed Beta** | **1 – 100 Users** | **Stable** | No code adjustments required. The synchronous loop runs comfortably within execution windows. |
+| **Approaching Limit** | **101 – 150 Users** | **At Risk** | Approaching the Supabase 150-second function timeout. Intermittent delivery failures may occur. |
+| **System Failure** | **150+ Users** | **Critical Failure** | The function will consistently time out or trigger Gmail account rate-limit blocks, breaking automated operations. |
+
+---
+
+### High-Volume Remediation Roadmap
+
+To scale the backend beyond **150+ users** without experiencing timeouts or service blocks, the application architecture must be decoupled using the following updates:
+
+1. **Migrate to a Transactional Web Gateway:** Replace Gmail SMTP with a high-volume developer email provider (e.g., **Resend, SendGrid, or Postmark**). These providers allow batching hundreds of emails simultaneously via a single HTTP POST API request, completing the operation in milliseconds rather than seconds.
+2. **Implement Parallel Fan-Out Execution:** Refactor the sequential loop to leverage Deno's asynchronous capability, firing concurrent requests instead of blocking execution on every individual user:
+```typescript
+// Dispatches all network requests in parallel
+const emailPromises = targetUsers.map(user => transporter.sendMail({...}));
+await Promise.allSettled(emailPromises);
+
+```
+
+
+3. **Offload Aggregations to PostgreSQL:** Eliminate large in-memory processing filters (`.filter()`) inside the Edge Function. Create a SQL `VIEW` or a Database Stored Procedure (RPC) within Supabase to let PostgreSQL handle metric compilations natively. The Edge Function should only ingest a clean, pre-calculated dataset ready for template injection.

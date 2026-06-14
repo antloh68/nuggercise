@@ -1,0 +1,33 @@
+[
+  {
+    "jobname": "send-daily-nudges",
+    "schedule": "0 7 * * *"
+  },
+  {
+    "jobname": "send-weekly-summary",
+    "schedule": "0 16 * * 6"
+  }
+]
+
+
+  select net.http_post(
+    url := 'https://iliajkjokfgudsqlskvs.supabase.co/functions/v1/send-nudge',
+    headers := '{"Content-Type": "application/json"}'::jsonb,
+    body := jsonb_build_object(
+      'token', 'YOUR_FUNCTION_SECRET_CODE',
+      'type', 'daily'
+    ),
+    timeout_milliseconds := 5000
+  );
+  
+
+  select net.http_post(
+    url := 'https://iliajkjokfgudsqlskvs.supabase.co/functions/v1/send-nudge',
+    headers := '{"Content-Type": "application/json"}'::jsonb,
+    body := jsonb_build_object(
+      'token', 'YOUR_FUNCTION_SECRET_CODE',
+      'type', 'weekly'
+    ),
+    timeout_milliseconds := 5000
+  );
+  

@@ -1,0 +1,61 @@
+// ============================================================
+// Nuggercise — Supabase Edge Function: delete-account
+// Paste this entire file into the Supabase Edge Function editor
+// Function name: delete-account
+// ============================================================
+
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+
+Deno.serve(async (req) => {
+
+  // Only allow POST
+  if (req.method !== 'POST') {
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405 })
+  }
+
+  // Get the user's access token from the Authorization header
+  const authHeader = req.headers.get('Authorization')
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return new Response(JSON.stringify({ error: 'Missing authorization' }), { status: 401 })
+  }
+  const accessToken = authHeader.replace('Bearer ', '')
+
+  // Create a client using the user's token to confirm their identity
+  const userClient = createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_ANON_KEY')!,
+    { global: { headers: { Authorization: `Bearer ${accessToken}` } } }
+  )
+
+  // Verify the token is valid and get the user's ID
+  const { data: { user }, error: userError } = await userClient.auth.getUser()
+  if (userError || !user) {
+    return new Response(JSON.stringify({ error: 'Invalid session' }), { status: 401 })
+  }
+
+  // Create an admin client using the service role key (server-side only — never in frontend)
+  const adminClient = createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+  )
+
+  // Delete all user logs (belt-and-suspenders — cascade handles it, but explicit is safer)
+  await adminClient
+    .from('nuggercises')
+    .delete()
+    .eq('user_id', user.id)
+
+  // Delete the profile row
+  await adminClient
+    .from('profiles')
+    .delete()
+    .eq('id', user.id)
+
+  // Delete the auth user — this is the step that requires service_role
+  const { error: deleteError } = await adminClient.auth.admin.deleteUser(user.id)
+  if (deleteError) {
+    return new Response(JSON.stringify({ error: deleteError.message }), { status: 500 })
+  }
+
+  return new Response(JSON.stringify({ success: true }), { status: 200 })
+})

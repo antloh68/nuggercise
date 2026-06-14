@@ -1,0 +1,37 @@
+-- WARNING: This schema is for context only and is not meant to be run.
+-- Table order and constraints may not be valid for execution.
+
+CREATE TABLE public.profiles (
+  id uuid NOT NULL,
+  nickname text NOT NULL CHECK (char_length(TRIM(BOTH FROM nickname)) >= 1 AND char_length(TRIM(BOTH FROM nickname)) <= 50),
+  habit_anchor text CHECK (char_length(TRIM(BOTH FROM habit_anchor)) <= 100),
+  updated_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  quick_nuggets jsonb,
+  CONSTRAINT profiles_pkey PRIMARY KEY (id),
+  CONSTRAINT profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.nuggercises (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  logged_at timestamp with time zone NOT NULL CHECK (logged_at >= (now() - '48:00:00'::interval)),
+  metric_type text NOT NULL CHECK (metric_type = ANY (ARRAY['minutes'::text, 'reps'::text])),
+  metric_value integer NOT NULL CHECK (metric_value > 0 AND metric_value <= 10000),
+  description text CHECK (char_length(TRIM(BOTH FROM description)) <= 250),
+  feeling_rating integer NOT NULL CHECK (feeling_rating >= 1 AND feeling_rating <= 5),
+  created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  CONSTRAINT nuggercises_pkey PRIMARY KEY (id),
+  CONSTRAINT nuggercises_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id)
+);
+CREATE TABLE public.app_congratulations (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  phrase text NOT NULL CHECK (char_length(TRIM(BOTH FROM phrase)) > 0),
+  rarity_tier text NOT NULL DEFAULT 'common'::text CHECK (rarity_tier = ANY (ARRAY['common'::text, 'energetic'::text, 'legendary'::text])),
+  CONSTRAINT app_congratulations_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.email_nudges (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  phrase text NOT NULL CHECK (char_length(TRIM(BOTH FROM phrase)) > 0),
+  times_used integer NOT NULL DEFAULT 0,
+  CONSTRAINT email_nudges_pkey PRIMARY KEY (id)
+);
