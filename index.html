@@ -95,7 +95,7 @@
     .ng-week-grid { display: flex; gap: 4px; }
     .ng-day { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
     .ng-day-label { font-size: 10px; color: var(--ng-subtle); font-weight: 500; }
-    .ng-day-bubble { width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 17px; cursor: pointer; transition: transform 0.12s; }
+    .ng-day-bubble { width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 17px; cursor: pointer; transition: transform 0.12s; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
     .ng-day-bubble:active { transform: scale(0.9); }
     .ng-day-bubble.done { background: #FFF0EB; }
     .ng-day-bubble.multi-log { box-shadow: 0 0 0 3px #FF6B35; background: #FFE0D0; }
@@ -141,7 +141,7 @@
     .ng-input:focus { border-color: var(--ng-orange); }
     .ng-char-count { font-size: 11px; color: var(--ng-subtle); text-align: right; }
     .ng-emoji-row { display: flex; justify-content: space-between; padding: 4px 8px; }
-    .ng-emoji-btn { font-size: 28px; cursor: pointer; opacity: 0.3; transition: transform 0.12s, opacity 0.12s; background: none; border: none; padding: 4px 6px; border-radius: 10px; }
+    .ng-emoji-btn { font-size: 28px; cursor: pointer; opacity: 0.3; transition: transform 0.12s, opacity 0.12s; background: none; border: none; padding: 4px 6px; border-radius: 10px; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
     .ng-emoji-btn.selected { opacity: 1; transform: scale(1.3); }
     .ng-submit-btn { width: 100%; padding: 15px; background: var(--ng-orange); color: #fff; border: none; border-radius: var(--ng-radius-sm); font-size: 16px; font-weight: 600; cursor: pointer; transition: background 0.15s, transform 0.1s; margin-top: 4px; }
     .ng-submit-btn:active { background: var(--ng-orange-dark); transform: scale(0.98); }
@@ -358,7 +358,7 @@
         <div class="ng-anchor-pill" id="dash-anchor" style="display:none"></div>
       </div>
       <div class="ng-card" id="instant-nuggets-card">
-        <div class="ng-card-label">Instant Nuggets</div>
+        <div class="ng-card-label">Instant Nuggercise</div>
         <div class="ng-instant-row" id="instant-nuggets-row"></div>
       </div>
       <div class="ng-card">
@@ -903,9 +903,21 @@ async function handleLogout() {
 // PROFILE
 // ─────────────────────────────────────────
 async function loadProfile() {
-  const { data } = await sb.from('profiles').select('*').eq('id', currentUser.id).single();
+  let { data } = await sb.from('profiles').select('*').eq('id', currentUser.id).single();
   // Trust the database trigger (on_auth_user_created) to have set nickname/anchor correctly.
   // Never overwrite from user_metadata here — metadata may not be populated on first SIGNED_IN.
+  // Fallback only: if the trigger hasn't fired yet (rare latency edge case), create a minimal
+  // profile row so the dashboard doesn't stall on a permanently null profile.
+  if (!data) {
+    const meta = currentUser.user_metadata || {};
+    const fallback = {
+      id: currentUser.id,
+      nickname: meta.nickname || currentUser.email?.split('@')?.[0] || 'Champ',
+      habit_anchor: meta.habit_anchor || null
+    };
+    const { data: created } = await sb.from('profiles').upsert(fallback).select().single();
+    data = created || fallback;
+  }
   currentProfile = data || null;
   if (currentProfile) {
     document.getElementById('settings-nickname').value = currentProfile.nickname || '';
@@ -1448,6 +1460,7 @@ function selectFeeling(btn) {
   document.querySelectorAll('.ng-emoji-btn').forEach(b => b.classList.remove('selected'));
   btn.classList.add('selected');
   document.getElementById('err-feeling').classList.remove('show');
+  if (navigator.vibrate) navigator.vibrate(15); // Light haptic tap for mood selection
 }
 
 function sanitizeNum(el) {
@@ -1545,7 +1558,9 @@ async function instantLog(type, value, description, triggerEl) {
 
   const { error } = await sb.from('nuggercises').insert({
     user_id: currentUser.id,
-    logged_at: new Date().toISOString(),
+    // logged_at omitted intentionally — instant logs are always "right now",
+    // so we let the database's own server-side clock set it via column default,
+    // avoiding any risk from a drifted client device clock
     metric_type: type,
     metric_value: value,
     description: (description || '').slice(0, 250) || null,
