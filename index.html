@@ -88,6 +88,7 @@
     .ng-day-bubble { width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 17px; cursor: pointer; transition: transform 0.12s; }
     .ng-day-bubble:active { transform: scale(0.9); }
     .ng-day-bubble.done { background: #FFF0EB; }
+    .ng-day-bubble.multi-log { box-shadow: 0 0 0 3px #FF6B35; background: #FFE0D0; }
     .ng-day-bubble.miss { background: #F5F5F5; font-size: 13px; color: var(--ng-subtle); }
     .ng-day-bubble.future { background: #F5F5F5; font-size: 13px; color: var(--ng-border); }
 
@@ -1211,10 +1212,12 @@ function buildWeekGrid(logs) {
     const isFuture = d > now;
     const isToday = d.toDateString() === now.toDateString();
     const isActive = d.toDateString() === activeDate.toDateString();
-    const hasLog = logs.some(l => {
+    const dayLogs = logs.filter(l => {
       const ld = new Date(l.logged_at);
       return ld >= d && ld <= dEnd;
     });
+    const hasLog = dayLogs.length > 0;
+    const isMultiLog = dayLogs.length >= 2; // Goal-Gradient Effect: extra effort gets visual recognition
 
     const col = document.createElement('div');
     col.className = 'ng-day';
@@ -1230,6 +1233,10 @@ function buildWeekGrid(logs) {
     } else if (hasLog) {
       bubble.classList.add('done');
       bubble.textContent = '🔥';
+      if (isMultiLog) {
+        bubble.classList.add('multi-log');
+        bubble.title = dayLogs.length + ' nuggets logged this day';
+      }
     } else {
       bubble.classList.add('miss');
       bubble.textContent = isToday ? '📊' : '❌';
