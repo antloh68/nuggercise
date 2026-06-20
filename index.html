@@ -80,6 +80,21 @@
     /* ── WELCOME ── */
     .ng-welcome-name { font-size: 18px; font-weight: 600; color: var(--ng-text); }
     .ng-anchor-pill { background: var(--ng-orange-light); border-radius: var(--ng-radius-sm); padding: 8px 12px; margin-top: 8px; font-size: 13px; color: var(--ng-orange-dark); font-style: italic; line-height: 1.5; }
+    .ng-anchor-log-btn { width: 100%; margin-top: 10px; padding: 11px; background: var(--ng-orange); color: #fff; border: none; border-radius: var(--ng-radius-sm); font-size: 14px; font-weight: 700; cursor: pointer; transition: transform 0.1s, opacity 0.15s; }
+    .ng-anchor-log-btn:active { transform: scale(0.97); opacity: 0.9; }
+    .ng-anchor-log-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .ng-anchor-log-btn.flash { animation: anchorFlash 0.5s ease; }
+    @keyframes anchorFlash { 0%,100% { background: var(--ng-orange); } 50% { background: var(--ng-green); } }
+    /* ── INSTANT NUGGETS ROW (BX-4) ── */
+    .ng-instant-row { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+    .ng-instant-row::-webkit-scrollbar { display: none; }
+    .ng-instant-btn { flex: 0 0 auto; background: var(--ng-bg); border: 1.5px solid var(--ng-border); border-radius: var(--ng-radius-sm); padding: 10px 14px; font-size: 13px; font-weight: 600; color: var(--ng-text); cursor: pointer; white-space: nowrap; transition: background 0.15s, transform 0.1s, border-color 0.15s; }
+    .ng-instant-btn:active { transform: scale(0.95); }
+    .ng-instant-btn.flash { background: var(--ng-green); border-color: var(--ng-green); color: #fff; }
+    .ng-instant-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    /* ── TOAST NOTIFICATION ── */
+    .ng-toast { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%) translateY(20px); background: #1A1A1A; color: #fff; padding: 10px 20px; border-radius: 24px; font-size: 13px; font-weight: 600; z-index: 70; opacity: 0; transition: opacity 0.25s, transform 0.25s; pointer-events: none; white-space: nowrap; }
+    .ng-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
     /* ── WEEK GRID ── */
     .ng-week-grid { display: flex; gap: 4px; }
@@ -346,6 +361,11 @@
       <div class="ng-card">
         <div class="ng-welcome-name" id="dash-welcome">Welcome back! 👋</div>
         <div class="ng-anchor-pill" id="dash-anchor" style="display:none"></div>
+        <button class="ng-anchor-log-btn" id="anchor-log-btn" style="display:none" onclick="logFromAnchor()">✅ Just did this!</button>
+      </div>
+      <div class="ng-card" id="instant-nuggets-card">
+        <div class="ng-card-label">Instant Nuggets</div>
+        <div class="ng-instant-row" id="instant-nuggets-row"></div>
       </div>
       <div class="ng-card">
         <div class="ng-card-label">This Week</div>
@@ -962,6 +982,7 @@ async function loadNuggets() {
   }
   renderQuickGrid();
   renderNuggetEditor();
+  renderInstantNuggets();
 }
 
 async function saveNuggets() {
@@ -981,6 +1002,7 @@ async function saveNuggets() {
   if (!error) {
     quickNuggets = updated;
     renderQuickGrid();
+    renderInstantNuggets();
     const msg = document.getElementById('nuggets-success');
     msg.classList.add('show');
     setTimeout(() => msg.classList.remove('show'), 2500);
@@ -1073,11 +1095,14 @@ function updateWelcome() {
   // Use textContent — never innerHTML — to prevent XSS
   document.getElementById('dash-welcome').textContent = 'Welcome back, ' + name + ' 👋';
   const anchorEl = document.getElementById('dash-anchor');
+  const anchorBtn = document.getElementById('anchor-log-btn');
   if (currentProfile.habit_anchor) {
     anchorEl.textContent = '"' + currentProfile.habit_anchor + '"';
     anchorEl.style.display = 'block';
+    anchorBtn.style.display = 'block';
   } else {
     anchorEl.style.display = 'none';
+    anchorBtn.style.display = 'none';
   }
 }
 
@@ -1517,6 +1542,103 @@ async function submitLog() {
   showReward(phrase, tier, val, selectedType, desc);
   btn.disabled = false;
   btn.textContent = 'Log It! 🔥';
+}
+
+// ─────────────────────────────────────────
+// BX-1 + BX-4: SHARED SILENT BACKGROUND LOG
+// Used by both the habit anchor "Just did this!" button
+// and the Instant Nuggets row — submits without leaving dashboard
+// ─────────────────────────────────────────
+async function instantLog(type, value, description, triggerEl) {
+  if (triggerEl) triggerEl.disabled = true;
+
+  const { error } = await sb.from('nuggercises').insert({
+    user_id: currentUser.id,
+    logged_at: new Date().toISOString(),
+    metric_type: type,
+    metric_value: value,
+    description: (description || '').slice(0, 250) || null,
+    feeling_rating: 3 // Neutral default — no emoji picker in this silent flow
+  });
+
+  if (error) {
+    showToast('⚠️ Could not log — try again');
+    if (triggerEl) triggerEl.disabled = false;
+    return;
+  }
+
+  // Brief visual flash on the trigger element
+  if (triggerEl) {
+    triggerEl.classList.add('flash');
+    setTimeout(() => {
+      triggerEl.classList.remove('flash');
+      triggerEl.disabled = false;
+    }, 500);
+  }
+
+  showToast('🔥 ' + (description || 'Nugget') + ' logged!');
+
+  // Light haptic feedback on supported Android devices
+  if (navigator.vibrate) navigator.vibrate(50);
+
+  await refreshDashboard();
+}
+
+// Parses a numeric value + type from habit anchor text
+// e.g. "When I sit for 1 hr, I do 20 squats" → { value: 20, type: 'reps' }
+// e.g. "When I finish lunch, I do 2 min plank" → { value: 2, type: 'minutes' }
+// Falls back to 10 reps if no number is found
+function parseAnchorExercise(anchorText) {
+  if (!anchorText) return { value: 10, type: 'reps' };
+  // Look for "I do/did <number> <unit>" pattern, preferring the part after the comma/trigger
+  const minutesMatch = anchorText.match(/(\d+)\s*(min|mins|minute|minutes)\b/i);
+  if (minutesMatch) return { value: parseInt(minutesMatch[1]), type: 'minutes' };
+  const repsMatch = anchorText.match(/(\d+)\s*(rep|reps|squat|squats|pushup|pushups|press|presses|stretch|stretches|lift|lifts|curl|curls|raise|raises)?/i);
+  // Find the LAST number in the string — usually the exercise count, not the trigger time
+  const allNumbers = [...anchorText.matchAll(/\d+/g)];
+  if (allNumbers.length > 0) {
+    const lastNum = parseInt(allNumbers[allNumbers.length - 1][0]);
+    if (lastNum > 0 && lastNum <= 10000) return { value: lastNum, type: 'reps' };
+  }
+  return { value: 10, type: 'reps' }; // Fallback default
+}
+
+async function logFromAnchor() {
+  if (!currentProfile || !currentProfile.habit_anchor) return;
+  const btn = document.getElementById('anchor-log-btn');
+  const parsed = parseAnchorExercise(currentProfile.habit_anchor);
+  await instantLog(parsed.type, parsed.value, currentProfile.habit_anchor, btn);
+}
+
+function renderInstantNuggets() {
+  const row = document.getElementById('instant-nuggets-row');
+  if (!row) return;
+  row.innerHTML = '';
+  quickNuggets.forEach(n => {
+    const btn = document.createElement('button');
+    btn.className = 'ng-instant-btn';
+    btn.textContent = n.emoji + ' ' + n.label;
+    btn.onclick = () => instantLog(n.type, n.value, n.label, btn);
+    row.appendChild(btn);
+  });
+}
+
+// ─────────────────────────────────────────
+// TOAST NOTIFICATION
+// ─────────────────────────────────────────
+let toastTimeout = null;
+function showToast(message) {
+  let toast = document.getElementById('ng-toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'ng-toast';
+    toast.className = 'ng-toast';
+    document.body.appendChild(toast);
+  }
+  toast.textContent = message; // Safe text content
+  toast.classList.add('show');
+  clearTimeout(toastTimeout);
+  toastTimeout = setTimeout(() => toast.classList.remove('show'), 1500);
 }
 
 // ─────────────────────────────────────────
