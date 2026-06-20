@@ -97,6 +97,7 @@
     .ng-streak-info { display: flex; flex-direction: column; }
     .ng-streak-title { font-size: 14px; font-weight: 600; color: var(--ng-text); }
     .ng-streak-sub { font-size: 12px; color: var(--ng-muted); }
+    .ng-streak-sub.loss-warning { color: #DC2626; font-weight: 500; }
     .ng-stats-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
     .ng-stat { background: var(--ng-bg); border-radius: var(--ng-radius-sm); padding: 12px 14px; }
     .ng-stat-val { font-size: 22px; font-weight: 700; color: var(--ng-text); }
@@ -339,7 +340,7 @@
         <div class="ng-streak-row">
           <div class="ng-streak-num" id="streak-num">0</div>
           <div class="ng-streak-info">
-            <div class="ng-streak-title">day streak 🔥</div>
+            <div class="ng-streak-title" id="streak-title">day streak 🔥</div>
             <div class="ng-streak-sub" id="streak-sub">Log today to start!</div>
           </div>
         </div>
@@ -1244,11 +1245,40 @@ function buildStreak(logs) {
     if (hasLog) streak++;
     else break;
   }
+
   document.getElementById('streak-num').textContent = streak;
   const sub = document.getElementById('streak-sub');
-  if (streak === 0) sub.textContent = 'Log today to start your streak!';
-  else if (streak === 1) sub.textContent = 'Day 1 — keep going tomorrow!';
-  else sub.textContent = streak + ' days in a row — don\'t stop now!';
+  const titleEl = document.getElementById('streak-title');
+  sub.classList.remove('loss-warning');
+
+  // Check if user has already logged today (using weekLogs already in memory — no extra query)
+  const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0);
+  const loggedToday = logs.some(l => new Date(l.logged_at) >= todayStart);
+
+  // SGT = UTC+8. Check if it's past 3:00 PM SGT.
+  const sgtHour = (now.getUTCHours() + 8) % 24;
+  const isPast3pmSGT = sgtHour >= 15;
+
+  if (loggedToday) {
+    // Positive reinforcement — show snowflake glow when streak is shielded for today
+    titleEl.textContent = streak > 0 ? 'day streak 🔥❄️' : 'day streak 🔥';
+    if (streak === 0) sub.textContent = 'Log today to start your streak!';
+    else if (streak === 1) sub.textContent = 'Day 1 — keep going tomorrow!';
+    else sub.textContent = streak + " days in a row — don't stop now!";
+  } else {
+    titleEl.textContent = 'day streak 🔥';
+    if (isPast3pmSGT && streak > 0) {
+      // Loss-framed message — Prospect Theory: loss feels ~2x more intense than equivalent gain
+      sub.textContent = `Don't let your ${streak} day${streak !== 1 ? 's' : ''} of hard work reset to 0. Log a 1-minute nugget to shield your streak!`;
+      sub.classList.add('loss-warning');
+    } else if (isPast3pmSGT && streak === 0) {
+      sub.textContent = 'Start your streak today — one tiny nugget is all it takes.';
+    } else if (streak > 0) {
+      sub.textContent = streak + " days in a row — don't stop now!";
+    } else {
+      sub.textContent = 'Log today to start your streak!';
+    }
+  }
 }
 
 function buildStats(logs) {
