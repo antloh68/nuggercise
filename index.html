@@ -150,6 +150,20 @@
     .ng-reward-tier.energetic { background: #FFF0EB; color: var(--ng-orange-dark); }
     .ng-reward-tier.legendary { background: linear-gradient(135deg, #FFD700, #FF6B35); color: #fff; }
     .ng-reward-back { width: 100%; padding: 15px; background: var(--ng-orange); color: #fff; border: none; border-radius: var(--ng-radius-sm); font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 8px; }
+    /* ── LEGENDARY PREMIUM MODE (BX-3) ── */
+    #ng-reward.legendary-mode { background: #1A1200; }
+    #ng-reward.legendary-mode::before {
+      content: ''; position: absolute; inset: 0; pointer-events: none;
+      border: 3px solid transparent;
+      background: linear-gradient(135deg, #FFD700, #FF6B35) border-box;
+      -webkit-mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor; mask-composite: exclude;
+    }
+    #ng-reward.legendary-mode .ng-reward-icon { font-size: 72px; filter: drop-shadow(0 0 16px rgba(255,215,0,0.6)); }
+    #ng-reward.legendary-mode .ng-reward-phrase { color: #FFD700; text-shadow: 0 0 20px rgba(255,215,0,0.35); }
+    #ng-reward.legendary-mode .ng-reward-detail { color: #CCAA00; }
+    #ng-reward.legendary-mode .ng-reward-tier.legendary { background: linear-gradient(135deg, #FFD700, #FF6B35); color: #1A1200; box-shadow: 0 0 20px rgba(255,215,0,0.4); }
+    #ng-reward.legendary-mode .ng-reward-back { background: linear-gradient(135deg, #FFD700, #FF6B35); color: #1A1200; font-weight: 700; }
 
     /* ── CONFETTI ── */
     .ng-confetti { position: fixed; pointer-events: none; z-index: 60; }
@@ -904,7 +918,7 @@ async function changeEmail() {
     errEl.classList.add('show');
   } else {
     // Update success message to explain both emails
-    successEl.textContent = '✓ Two emails sent — check both your new and old address to confirm.';
+    successEl.textContent = '✓ Two emails sent — check both your new and old address to confirm the email change.';
     successEl.classList.add('show');
     document.getElementById('settings-new-email').value = '';
     setTimeout(() => successEl.classList.remove('show'), 6000);
@@ -1507,6 +1521,7 @@ const TIER_LABELS = { common: 'Logged', energetic: 'Energetic!', legendary: '★
 function showReward(phrase, tier, val, type, desc) {
   const reward = document.getElementById('ng-reward');
   reward.innerHTML = '';
+  reward.classList.toggle('legendary-mode', tier === 'legendary');
 
   const iconEl = document.createElement('div'); iconEl.className = 'ng-reward-icon'; iconEl.textContent = TIER_ICONS[tier];
   const tierBadge = document.createElement('div'); tierBadge.className = 'ng-reward-tier ' + tier; tierBadge.textContent = TIER_LABELS[tier];
@@ -1515,18 +1530,25 @@ function showReward(phrase, tier, val, type, desc) {
   const detailText = document.createTextNode(val + (type === 'reps' ? ' reps' : ' min') + (desc ? ' — ' + desc : ''));
   detailEl.appendChild(detailText); // Safe text node — XSS immune
   const backBtn = document.createElement('button'); backBtn.className = 'ng-reward-back'; backBtn.textContent = 'Back to Dashboard 🔥';
-  backBtn.onclick = () => { reward.classList.remove('show'); showScreen('screen-dashboard'); };
+  backBtn.onclick = () => {
+    reward.classList.remove('show');
+    reward.classList.remove('legendary-mode'); // Reset for next reward
+    showScreen('screen-dashboard');
+  };
 
   reward.appendChild(iconEl); reward.appendChild(tierBadge); reward.appendChild(phraseEl); reward.appendChild(detailEl); reward.appendChild(backBtn);
   reward.classList.add('show');
 
-  if (tier === 'legendary') launchConfetti();
+  if (tier === 'legendary') launchConfetti(true);
 }
 
-function launchConfetti() {
-  const colors = ['#FF6B35','#06D6A0','#FFD166','#EF476F','#118AB2','#FFD700'];
+function launchConfetti(isLegendary) {
+  const colors = isLegendary
+    ? ['#FFD700', '#FF6B35', '#CC9900', '#FFA500', '#FFE066', '#FF8C00'] // Gold-dominant palette for legendary
+    : ['#FF6B35','#06D6A0','#FFD166','#EF476F','#118AB2','#FFD700'];
+  const count = isLegendary ? 90 : 60; // More confetti for legendary
   const shapes = ['circle', 'square'];
-  for (let i = 0; i < 60; i++) {
+  for (let i = 0; i < count; i++) {
     const el = document.createElement('div');
     el.className = 'ng-confetti';
     const size = 6 + Math.random() * 8;
