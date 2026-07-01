@@ -1148,16 +1148,17 @@ async function refreshDashboard() {
   weekEnd.setHours(23, 59, 59, 999);
 
   // Fetch current week logs for streak + stats + grid (always reflects real current week)
+  // Only select columns needed for aggregation — description not needed here, saves payload
   const { data: wLogs } = await sb
     .from('nuggercises')
-    .select('*')
+    .select('logged_at, metric_type, metric_value, feeling_rating')
     .eq('user_id', currentUser.id)
     .gte('logged_at', weekStart.toISOString())
     .lte('logged_at', weekEnd.toISOString())
     .order('logged_at', { ascending: false });
   weekLogs = wLogs || [];
 
-  // Fetch logs for the active date (may differ from today when navigating)
+  // Fetch logs for the active date — include description for the log list display
   const activeDayStart = new Date(activeDate);
   activeDayStart.setHours(0, 0, 0, 0);
   const activeDayEnd = new Date(activeDate);
@@ -1165,7 +1166,7 @@ async function refreshDashboard() {
 
   const { data: dayLogs } = await sb
     .from('nuggercises')
-    .select('*')
+    .select('logged_at, metric_type, metric_value, feeling_rating, description')
     .eq('user_id', currentUser.id)
     .gte('logged_at', activeDayStart.toISOString())
     .lte('logged_at', activeDayEnd.toISOString())
@@ -1224,13 +1225,14 @@ function jumpToDate(date) {
 
 function buildWeekGrid(logs) {
   const grid = document.getElementById('week-grid');
-  grid.innerHTML = '';
   const days = ['S','M','T','W','T','F','S']; // Sun–Sat
   const now = new Date();
-  // Find Sunday of current week
   const sunday = new Date(now);
   sunday.setDate(now.getDate() - now.getDay());
   sunday.setHours(0, 0, 0, 0);
+
+  // Build all 7 day columns in a fragment — single DOM write at the end
+  const fragment = document.createDocumentFragment();
 
   for (let i = 0; i < 7; i++) {
     const d = new Date(sunday);
@@ -1245,7 +1247,7 @@ function buildWeekGrid(logs) {
       return ld >= d && ld <= dEnd;
     });
     const hasLog = dayLogs.length > 0;
-    const isMultiLog = dayLogs.length >= 2; // Goal-Gradient Effect: extra effort gets visual recognition
+    const isMultiLog = dayLogs.length >= 2;
 
     const col = document.createElement('div');
     col.className = 'ng-day';
@@ -1254,7 +1256,7 @@ function buildWeekGrid(logs) {
     lbl.textContent = days[i];
     const bubble = document.createElement('div');
     bubble.className = 'ng-day-bubble';
-    bubble.dataset.date = d.toDateString(); // for active state matching
+    bubble.dataset.date = d.toDateString();
     if (isFuture) {
       bubble.classList.add('future');
       bubble.textContent = '·';
@@ -1270,15 +1272,18 @@ function buildWeekGrid(logs) {
       bubble.textContent = isToday ? '📊' : '❌';
     }
     if (isActive) bubble.classList.add('active');
-    // Every non-future day is tappable to jump to that date
     if (!isFuture) {
       bubble.style.cursor = 'pointer';
       bubble.onclick = () => jumpToDate(d);
     }
     col.appendChild(lbl);
     col.appendChild(bubble);
-    grid.appendChild(col);
+    fragment.appendChild(col);
   }
+
+  // Single DOM write — no layout thrashing on older mobile processors
+  grid.innerHTML = '';
+  grid.appendChild(fragment);
 }
 
 function buildStreak(logs) {
@@ -1342,9 +1347,9 @@ function buildStats(logs) {
 
 function buildDayLog(logs) {
   const container = document.getElementById('today-log');
-  container.innerHTML = '';
   const isToday = activeDate.toDateString() === new Date().toDateString();
   if (!logs.length) {
+    container.innerHTML = '';
     const empty = document.createElement('div');
     empty.className = 'ng-log-empty';
     empty.textContent = isToday ? 'Nothing yet — tap + to log your first nugget!' : 'No logs for this day.';
@@ -1352,6 +1357,7 @@ function buildDayLog(logs) {
     return;
   }
   const FEELINGS = ['','😞','😐','🙂','😁','🤩'];
+  const fragment = document.createDocumentFragment();
   logs.forEach(l => {
     const item = document.createElement('div');
     item.className = 'ng-log-item';
@@ -1368,8 +1374,11 @@ function buildDayLog(logs) {
     feel.className = 'ng-log-feel';
     feel.textContent = FEELINGS[l.feeling_rating] || '';
     item.appendChild(time); item.appendChild(badge); item.appendChild(desc); item.appendChild(feel);
-    container.appendChild(item);
+    fragment.appendChild(item);
   });
+  // Single DOM write
+  container.innerHTML = '';
+  container.appendChild(fragment);
 }
 
 // ─────────────────────────────────────────
@@ -1378,7 +1387,7 @@ function buildDayLog(logs) {
 async function openHistory(dayDate) {
   const { data: logs } = await sb
     .from('nuggercises')
-    .select('*')
+    .select('logged_at, metric_type, metric_value, feeling_rating, description')
     .eq('user_id', currentUser.id)
     .order('logged_at', { ascending: false });
 
@@ -1682,7 +1691,7 @@ function launchConfetti(isLegendary) {
 async function exportCSV() {
   const { data: logs } = await sb
     .from('nuggercises')
-    .select('*')
+    .select('logged_at, metric_type, metric_value, description, feeling_rating')
     .eq('user_id', currentUser.id)
     .order('logged_at', { ascending: false });
 
@@ -1786,6 +1795,17 @@ async function deleteAccount() {
     btn.disabled = false;
     btn.textContent = 'Delete Forever';
   }
+}
+
+// ─────────────────────────────────────────
+// SERVICE WORKER — PWA caching
+// ─────────────────────────────────────────
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/nuggercise/sw.js').catch(() => {
+      // SW registration failure is non-fatal — app works normally without it
+    });
+  });
 }
 
 // ─────────────────────────────────────────
