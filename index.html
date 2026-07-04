@@ -1636,6 +1636,79 @@ function showToast(message) {
 const TIER_ICONS = { common: '✅', energetic: '⚡', legendary: '🏆' };
 const TIER_LABELS = { common: 'Logged', energetic: 'Energetic!', legendary: '★ Legendary!' };
 
+// ─────────────────────────────────────────
+// WEB AUDIO REWARD SOUNDS
+// Synthesized via Web Audio API — no file downloads, works offline
+// ─────────────────────────────────────────
+function playCommonSound() {
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) return;
+  const ctx = new AC();
+  const osc1 = ctx.createOscillator();
+  const osc2 = ctx.createOscillator();
+  const gainNode = ctx.createGain();
+  osc1.type = 'sine';
+  osc1.frequency.setValueAtTime(523.25, ctx.currentTime);
+  osc1.frequency.exponentialRampToValueAtTime(783.99, ctx.currentTime + 0.15);
+  osc2.type = 'sine';
+  osc2.frequency.setValueAtTime(659.25, ctx.currentTime);
+  osc2.frequency.exponentialRampToValueAtTime(1046.50, ctx.currentTime + 0.15);
+  gainNode.gain.setValueAtTime(0.15, ctx.currentTime);
+  gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+  osc1.connect(gainNode); osc2.connect(gainNode); gainNode.connect(ctx.destination);
+  osc1.start(); osc2.start();
+  osc1.stop(ctx.currentTime + 0.25); osc2.stop(ctx.currentTime + 0.25);
+}
+
+function playEnergeticSound() {
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) return;
+  const ctx = new AC();
+  const notes = [523.25, 659.25, 783.99, 1046.50];
+  const noteLength = 0.06;
+  notes.forEach((freq, i) => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(freq, ctx.currentTime + (i * noteLength));
+    gain.gain.setValueAtTime(0.15, ctx.currentTime + (i * noteLength));
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + (i * noteLength) + 0.1);
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.start(ctx.currentTime + (i * noteLength));
+    osc.stop(ctx.currentTime + (i * noteLength) + 0.1);
+  });
+}
+
+function playLegendarySound() {
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) return;
+  const ctx = new AC();
+  const startTime = ctx.currentTime;
+  const osc1 = ctx.createOscillator();
+  const osc2 = ctx.createOscillator();
+  const gainNode = ctx.createGain();
+  osc1.type = 'square';
+  osc2.type = 'square';
+  osc2.detune.setValueAtTime(15, startTime);
+  const sequence = [
+    { time: 0.0,  freq: 523.25  },
+    { time: 0.08, freq: 659.25  },
+    { time: 0.16, freq: 783.99  },
+    { time: 0.24, freq: 1046.50 },
+    { time: 0.36, freq: 1318.51 }
+  ];
+  sequence.forEach(step => {
+    osc1.frequency.setValueAtTime(step.freq, startTime + step.time);
+    osc2.frequency.setValueAtTime(step.freq, startTime + step.time);
+  });
+  gainNode.gain.setValueAtTime(0.12, startTime);
+  gainNode.gain.setValueAtTime(0.12, startTime + 0.36);
+  gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + 0.75);
+  osc1.connect(gainNode); osc2.connect(gainNode); gainNode.connect(ctx.destination);
+  osc1.start(startTime); osc2.start(startTime);
+  osc1.stop(startTime + 0.75); osc2.stop(startTime + 0.75);
+}
+
 function showReward(phrase, tier, val, type, desc) {
   const reward = document.getElementById('ng-reward');
   reward.innerHTML = '';
@@ -1646,18 +1719,26 @@ function showReward(phrase, tier, val, type, desc) {
   const phraseEl = document.createElement('div'); phraseEl.className = 'ng-reward-phrase'; phraseEl.textContent = phrase;
   const detailEl = document.createElement('div'); detailEl.className = 'ng-reward-detail';
   const detailText = document.createTextNode(val + (type === 'reps' ? ' reps' : ' min') + (desc ? ' — ' + desc : ''));
-  detailEl.appendChild(detailText); // Safe text node — XSS immune
+  detailEl.appendChild(detailText);
   const backBtn = document.createElement('button'); backBtn.className = 'ng-reward-back'; backBtn.textContent = 'Back to Dashboard 🔥';
   backBtn.onclick = () => {
     reward.classList.remove('show');
-    reward.classList.remove('legendary-mode'); // Reset for next reward
+    reward.classList.remove('legendary-mode');
     showScreen('screen-dashboard');
   };
 
   reward.appendChild(iconEl); reward.appendChild(tierBadge); reward.appendChild(phraseEl); reward.appendChild(detailEl); reward.appendChild(backBtn);
   reward.classList.add('show');
 
-  if (tier === 'legendary') launchConfetti(true);
+  // Play tier-matched sound effect
+  if (tier === 'legendary') {
+    playLegendarySound();
+    launchConfetti(true);
+  } else if (tier === 'energetic') {
+    playEnergeticSound();
+  } else {
+    playCommonSound();
+  }
 }
 
 function launchConfetti(isLegendary) {
