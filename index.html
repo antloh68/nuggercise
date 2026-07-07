@@ -261,7 +261,23 @@
     .ng-pw-toggle-btn { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; font-size: 18px; color: var(--ng-muted); padding: 4px; line-height: 1; }
     .ng-pw-toggle-row { display: flex; align-items: center; justify-content: flex-end; gap: 6px; margin-top: -4px; margin-bottom: 4px; }
     .ng-pw-toggle-link { font-size: 13px; color: var(--ng-orange); cursor: pointer; background: none; border: none; padding: 0; font-weight: 500; }
-    #app-loader { position: fixed; inset: 0; background: var(--ng-surface); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; z-index: 100; }
+    /* ── ABOUT MODAL ── */
+    .about-sheet { background: var(--ng-surface); border-radius: var(--ng-radius); padding: 0; width: 100%; max-width: 400px; max-height: 80vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.25); }
+    .about-header { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px 14px; border-bottom: 1px solid var(--ng-border); }
+    .about-title { font-size: 17px; font-weight: 700; color: var(--ng-text); }
+    .about-close-x { background: none; border: none; cursor: pointer; color: var(--ng-muted); font-size: 16px; padding: 4px 8px; border-radius: 6px; line-height: 1; }
+    .about-close-x:active { background: var(--ng-bg); }
+    .about-body { overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 12px; -webkit-overflow-scrolling: touch; }
+    .about-intro { font-size: 17px; font-weight: 700; color: var(--ng-orange); margin: 0; line-height: 1.4; }
+    .about-text { font-size: 14px; color: var(--ng-muted); line-height: 1.65; margin: 0; }
+    .about-section-label { font-size: 12px; font-weight: 700; color: var(--ng-subtle); text-transform: uppercase; letter-spacing: 0.08em; margin: 4px 0 0; }
+    .about-step { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; color: var(--ng-text); line-height: 1.6; }
+    .about-bullet { color: var(--ng-orange); font-weight: 700; font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+    .about-step-title { font-weight: 700; color: var(--ng-text); }
+    .about-cta { margin: 0; padding: 15px; background: var(--ng-orange); color: #fff; border: none; font-size: 15px; font-weight: 700; cursor: pointer; transition: background 0.15s; flex-shrink: 0; border-top: 1px solid var(--ng-border); }
+    .about-cta:active { background: var(--ng-orange-dark); }
+    #about-modal.show { display: flex; }
+    /* ── LOADER ── */
     .loader-logo { font-size: 48px; }
     .loader-title { font-size: 24px; font-weight: 700; color: var(--ng-orange); }
     .loader-dot-row { display: flex; gap: 6px; }
@@ -361,7 +377,16 @@
   <div id="screen-dashboard" class="screen">
     <div class="ng-header">
       <span class="ng-header-title">🔥 NUGGERCISE</span>
-      <button class="ng-icon-btn" onclick="showScreen('screen-settings')" aria-label="Settings">⚙️</button>
+      <div style="display:flex;align-items:center;gap:4px;">
+        <button class="ng-icon-btn" onclick="openAbout()" aria-label="About Nuggercise">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="8.5" stroke-width="2.5"/>
+            <line x1="12" y1="11" x2="12" y2="16"/>
+          </svg>
+        </button>
+        <button class="ng-icon-btn" onclick="showScreen('screen-settings')" aria-label="Settings">⚙️</button>
+      </div>
     </div>
     <div class="ng-body">
       <div class="ng-card">
@@ -537,6 +562,34 @@
     </div>
   </div>
 
+  <!-- ABOUT MODAL -->
+  <div id="about-modal" role="dialog" aria-modal="true" aria-label="About Nuggercise" onclick="handleAboutOverlayClick(event)" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:80; align-items:center; justify-content:center; padding:24px;">
+    <div class="about-sheet">
+      <div class="about-header">
+        <div class="about-title">About Nuggercise</div>
+        <button class="about-close-x" onclick="closeAbout()" aria-label="Close">✕</button>
+      </div>
+      <div class="about-body">
+        <p class="about-intro">Welcome to Nuggercise! ⚡</p>
+        <p class="about-text">Big fitness goals, broken down into bite-sized habits. Nuggercise helps you build consistency by logging your daily active moments—your fitness "nuggets"—and turning them into a rewarding streak.</p>
+        <p class="about-section-label">How to use it in 3 steps:</p>
+        <div class="about-step">
+          <span class="about-bullet">•</span>
+          <div><span class="about-step-title">Log a Nugget:</span> Did a quick stretch, a short walk, or a heavy workout? Tap the "+" button to log it.</div>
+        </div>
+        <div class="about-step">
+          <span class="about-bullet">•</span>
+          <div><span class="about-step-title">Build the Rhythm:</span> Every log immediately unlocks a moment of reflection—tracking how you feel, reinforcing the mind-body connection, and visualizing your active choices.</div>
+        </div>
+        <div class="about-step">
+          <span class="about-bullet">•</span>
+          <div><span class="about-step-title">Keep it Alive:</span> Log at least one fitness nugget every day to build your streak grid and watch your physical progress compound over time.</div>
+        </div>
+      </div>
+      <button class="about-cta" onclick="closeAbout()">Got it! 🔥</button>
+    </div>
+  </div>
+
 </div>
 
 <!-- Supabase SDK -->
@@ -646,6 +699,7 @@ async function loadApp() {
   await refreshDashboard();
   hideLoader();
   showScreen('screen-dashboard');
+  maybeShowAbout(); // Auto-open for first-time users after dashboard is visible
 }
 
 function hideLoader() {
@@ -1973,6 +2027,38 @@ async function deleteAccount() {
     btn.disabled = false;
     btn.textContent = 'Delete Forever';
   }
+}
+
+// ─────────────────────────────────────────
+// ABOUT MODAL
+// ─────────────────────────────────────────
+function openAbout() {
+  const modal = document.getElementById('about-modal');
+  modal.classList.add('show');
+  modal.style.display = 'flex';
+}
+
+function closeAbout() {
+  const modal = document.getElementById('about-modal');
+  modal.classList.remove('show');
+  modal.style.display = 'none';
+  // Mark as onboarded so it never auto-opens again
+  try { localStorage.setItem('nuggercise_onboarded', '1'); } catch(e) {}
+}
+
+function handleAboutOverlayClick(e) {
+  // Close if user taps the dark overlay (not the sheet itself)
+  if (e.target === document.getElementById('about-modal')) closeAbout();
+}
+
+function maybeShowAbout() {
+  // Auto-open for first-time users only — after dashboard is visible
+  try {
+    if (!localStorage.getItem('nuggercise_onboarded')) {
+      // Small delay so the dashboard renders fully before the modal appears
+      setTimeout(openAbout, 600);
+    }
+  } catch(e) {}
 }
 
 // ─────────────────────────────────────────
