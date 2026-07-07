@@ -78,7 +78,7 @@
     .ng-card-label { font-size: 11px; font-weight: 600; color: var(--ng-subtle); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 10px; }
 
     /* ── WELCOME ── */
-    .ng-welcome-name { font-size: 18px; font-weight: 600; color: var(--ng-text); }
+    .ng-welcome-name { font-size: 18px; font-weight: 600; color: var(--ng-text); transition: opacity 0.4s ease; }
     .ng-anchor-pill { background: var(--ng-orange-light); border-radius: var(--ng-radius-sm); padding: 8px 12px; margin-top: 8px; font-size: 13px; color: var(--ng-orange-dark); font-style: italic; line-height: 1.5; }
     /* ── INSTANT NUGGETS ROW (BX-4) ── */
     .ng-instant-row { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
@@ -579,7 +579,7 @@
         </div>
         <div class="about-step">
           <span class="about-bullet">•</span>
-          <div><span class="about-step-title">Build the Rhythm:</span> Every log immediately unlocks a moment of reflection—tracking how you feel, reinforcing the mind-body connection, and visualizing your active choices.</div>
+          <div><span class="about-step-title">Unlock Rewards:</span> Every log instantly reveals a random reward tier—Common, Energetic, or Legendary—complete with arcade audio and celebration highlights!</div>
         </div>
         <div class="about-step">
           <span class="about-bullet">•</span>
@@ -620,6 +620,7 @@ let weekLogs = [];
 let appLoaded = false;
 let isRecoveryMode = false;
 let activeDate = new Date(); // Currently viewed date on dashboard
+let welcomeToggleInterval = null; // Handle for welcome/anchor rotation interval
 const DEFAULT_NUGGETS = [
   { label: '20 Squats',    emoji: '🦵', type: 'reps',    value: 20 },
   { label: '1 Min Plank',  emoji: '⏱',  type: 'minutes', value: 1  },
@@ -1162,16 +1163,45 @@ function renderQuickGrid() {
 
 function updateWelcome() {
   if (!currentProfile) return;
+
   const name = currentProfile.nickname || 'Champ';
-  // Use textContent — never innerHTML — to prevent XSS
-  document.getElementById('dash-welcome').textContent = 'Welcome back, ' + name + ' 👋';
-  const anchorEl = document.getElementById('dash-anchor');
-  if (currentProfile.habit_anchor) {
-    anchorEl.textContent = '"' + currentProfile.habit_anchor + '"';
-    anchorEl.style.display = 'block';
-  } else {
-    anchorEl.style.display = 'none';
+  const greetingText = 'Welcome back, ' + name + ' 👋';
+  const anchorText = currentProfile.habit_anchor
+    ? '\u201c' + currentProfile.habit_anchor + '\u201d' // " curly quotes — safe unicode
+    : null;
+
+  // Always keep the anchor pill hidden — text rotates in the main greeting element instead
+  document.getElementById('dash-anchor').style.display = 'none';
+
+  const el = document.getElementById('dash-welcome');
+
+  // Clear any existing interval to prevent overlapping loops on dashboard refresh
+  if (welcomeToggleInterval) {
+    clearInterval(welcomeToggleInterval);
+    welcomeToggleInterval = null;
   }
+
+  // Set initial greeting text immediately
+  el.style.opacity = '1';
+  el.textContent = greetingText;
+
+  // No anchor set — show greeting only, no rotation needed
+  if (!anchorText) return;
+
+  // Rotation state — alternates between greeting and anchor
+  let showingGreeting = true;
+
+  welcomeToggleInterval = setInterval(() => {
+    // Fade out
+    el.style.opacity = '0';
+    setTimeout(() => {
+      // Swap text while invisible
+      showingGreeting = !showingGreeting;
+      el.textContent = showingGreeting ? greetingText : anchorText;
+      // Fade back in
+      el.style.opacity = '1';
+    }, 400); // Match CSS transition duration
+  }, 5000);
 }
 
 // ─────────────────────────────────────────
@@ -1966,6 +1996,12 @@ function showScreen(id) {
   if (id === 'screen-settings') renderNuggetEditor();
   if (id === 'screen-dashboard') {
     activeDate = new Date(); // Reset to today when returning to dashboard
+  } else {
+    // Pause the welcome rotation when not on dashboard — saves battery, avoids ghost updates
+    if (welcomeToggleInterval) {
+      clearInterval(welcomeToggleInterval);
+      welcomeToggleInterval = null;
+    }
   }
   window.scrollTo(0, 0);
 }
