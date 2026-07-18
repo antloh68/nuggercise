@@ -79,7 +79,8 @@
 
     /* ── WELCOME ── */
     /* ── ANCHOR SCROLL (single line marquee) ── */
-    .ng-welcome-name { font-size: 18px; font-weight: 600; color: var(--ng-text); transition: opacity 0.4s ease; white-space: nowrap; overflow: hidden; }
+    .ng-welcome-wrap { overflow: hidden; width: 100%; }
+    .ng-welcome-name { font-size: 18px; font-weight: 600; color: var(--ng-text); transition: opacity 0.4s ease; white-space: nowrap; display: inline-block; padding-right: 24px; }
     /* ── REFLECTION MODAL ── */
     .reflect-sheet { background: var(--ng-surface); border-radius: var(--ng-radius); width: 100%; max-width: 400px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.25); max-height: 85vh; }
     .reflect-header { display: flex; align-items: center; gap: 6px; padding: 14px 16px; border-bottom: 1px solid var(--ng-border); }
@@ -415,7 +416,7 @@
     </div>
     <div class="ng-body">
       <div class="ng-card">
-        <div class="ng-welcome-name" id="dash-welcome">Welcome back! 👋</div>
+        <div class="ng-welcome-wrap"><div class="ng-welcome-name" id="dash-welcome">Welcome back! 👋</div></div>
         <div class="ng-anchor-pill" id="dash-anchor" style="display:none"></div>
       </div>
       <div class="ng-card" id="instant-nuggets-card">
@@ -1241,29 +1242,30 @@ function updateWelcome() {
   }
 
   // ── ANCHOR MARQUEE LOGIC ──
-  // Show anchor text, scroll it if it overflows, then switch to greeting
+  // Wrapper clips, inner el scrolls — prevents right-edge truncation
   function showAnchorAndScroll() {
-    el.textContent = '\u201c' + anchorText + '\u201d'; // " curly quotes
+    el.textContent = '\u201c' + anchorText + '\u201d';
     el.style.opacity = '1';
     el.style.transform = 'translateX(0)';
     el.style.transition = 'opacity 0.4s ease';
 
-    // Wait one frame so the DOM renders the text width
     requestAnimationFrame(() => {
-      const overflow = el.scrollWidth - el.clientWidth;
+      // Measure how far the text exceeds the clipping wrapper
+      const wrapper = el.parentElement;
+      const overflow = el.scrollWidth - wrapper.clientWidth;
 
       if (overflow <= 0) {
-        // Text fits on one line — no scroll needed, just pause then switch
+        // Text fits — no scroll, just pause then switch
         welcomeToggleInterval = setTimeout(switchToGreeting, 3000);
         return;
       }
 
-      // Text overflows — animate scroll left over proportional duration
-      const scrollDuration = Math.max(2000, overflow * 12); // ~12ms per px
+      // Animate scroll left — text slides until the end is fully visible
+      const scrollDuration = Math.max(2000, overflow * 12);
       el.style.transition = 'transform ' + scrollDuration + 'ms linear';
       el.style.transform = 'translateX(-' + overflow + 'px)';
 
-      // After scroll completes, pause 2s then switch to greeting
+      // Pause 2s at end then switch
       welcomeToggleInterval = setTimeout(switchToGreeting, scrollDuration + 2000);
     });
   }
