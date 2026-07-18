@@ -78,7 +78,31 @@
     .ng-card-label { font-size: 11px; font-weight: 600; color: var(--ng-subtle); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 10px; }
 
     /* ── WELCOME ── */
-    .ng-welcome-name { font-size: 18px; font-weight: 600; color: var(--ng-text); transition: opacity 0.4s ease; }
+    /* ── ANCHOR SCROLL (single line marquee) ── */
+    .ng-welcome-name { font-size: 18px; font-weight: 600; color: var(--ng-text); transition: opacity 0.4s ease; white-space: nowrap; overflow: hidden; }
+    /* ── REFLECTION MODAL ── */
+    .reflect-sheet { background: var(--ng-surface); border-radius: var(--ng-radius); width: 100%; max-width: 400px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.25); max-height: 85vh; }
+    .reflect-header { display: flex; align-items: center; gap: 6px; padding: 14px 16px; border-bottom: 1px solid var(--ng-border); }
+    .reflect-nav-btn { background: none; border: 1.5px solid var(--ng-border); border-radius: 8px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; font-size: 15px; cursor: pointer; color: var(--ng-text); flex-shrink: 0; transition: background 0.12s; }
+    .reflect-nav-btn:active { background: var(--ng-bg); }
+    .reflect-nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+    .reflect-date-label { flex: 1; text-align: center; font-size: 14px; font-weight: 700; color: var(--ng-text); }
+    .reflect-close-x { background: none; border: none; cursor: pointer; color: var(--ng-muted); font-size: 16px; padding: 4px 8px; border-radius: 6px; margin-left: 4px; }
+    .reflect-close-x:active { background: var(--ng-bg); }
+    .reflect-body { padding: 18px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; }
+    .reflect-prompt { font-size: 13px; color: var(--ng-muted); line-height: 1.5; }
+    .reflect-input { width: 100%; min-height: 140px; padding: 12px; border: 1.5px solid var(--ng-border); border-radius: var(--ng-radius-sm); font-size: 15px; color: var(--ng-text); background: var(--ng-bg); resize: none; font-family: inherit; line-height: 1.6; outline: none; transition: border-color 0.15s; }
+    .reflect-input:focus { border-color: var(--ng-orange); }
+    .reflect-input:read-only { background: var(--ng-surface); color: var(--ng-muted); border-color: var(--ng-border); cursor: default; }
+    .reflect-meta { display: flex; align-items: center; justify-content: space-between; }
+    .reflect-char-count { font-size: 12px; color: var(--ng-subtle); }
+    .reflect-readonly-label { font-size: 12px; color: var(--ng-muted); font-style: italic; }
+    .reflect-error { font-size: 13px; color: #DC2626; padding: 2px 0; }
+    .reflect-footer { padding: 14px 18px; border-top: 1px solid var(--ng-border); }
+    .reflect-save-btn { width: 100%; padding: 13px; background: var(--ng-orange); color: #fff; border: none; border-radius: var(--ng-radius-sm); font-size: 15px; font-weight: 700; cursor: pointer; transition: background 0.15s; }
+    .reflect-save-btn:active { background: var(--ng-orange-dark); }
+    .reflect-save-btn:disabled { background: #ccc; cursor: not-allowed; }
+    #reflection-modal.show { display: flex; }
     .ng-anchor-pill { background: var(--ng-orange-light); border-radius: var(--ng-radius-sm); padding: 8px 12px; margin-top: 8px; font-size: 13px; color: var(--ng-orange-dark); font-style: italic; line-height: 1.5; }
     /* ── INSTANT NUGGETS ROW (BX-4) ── */
     .ng-instant-row { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
@@ -378,6 +402,7 @@
     <div class="ng-header">
       <span class="ng-header-title">🔥 NUGGERCISE</span>
       <div style="display:flex;align-items:center;gap:4px;">
+        <button class="ng-icon-btn" onclick="openReflection()" aria-label="Daily reflection" style="font-size:20px;">🤔</button>
         <button class="ng-icon-btn" onclick="openAbout()" aria-label="About Nuggercise">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="10"/>
@@ -559,6 +584,30 @@
       <div class="history-handle"></div>
       <div class="history-title">Full Log History</div>
       <div id="history-list"></div>
+    </div>
+  </div>
+
+  <!-- REFLECTION MODAL -->
+  <div id="reflection-modal" role="dialog" aria-modal="true" onclick="handleReflectionOverlayClick(event)" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:80; align-items:center; justify-content:center; padding:24px;">
+    <div class="reflect-sheet">
+      <div class="reflect-header">
+        <button class="reflect-nav-btn" id="reflect-prev" onclick="reflectionNavigate(-1)" aria-label="Previous day">←</button>
+        <div class="reflect-date-label" id="reflect-date-label">Today</div>
+        <button class="reflect-nav-btn" id="reflect-next" onclick="reflectionNavigate(1)" aria-label="Next day" disabled>→</button>
+        <button class="reflect-close-x" onclick="closeReflection()" aria-label="Close">✕</button>
+      </div>
+      <div class="reflect-body">
+        <div class="reflect-prompt">🤔 How did today feel? What are you proud of?</div>
+        <textarea class="reflect-input" id="reflect-input" maxlength="500" placeholder="Write your reflection here..." oninput="updateReflectCount()"></textarea>
+        <div class="reflect-meta">
+          <span class="reflect-char-count"><span id="reflect-char">0</span>/500</span>
+          <span class="reflect-readonly-label" id="reflect-readonly-label" style="display:none;">📖 Read only</span>
+        </div>
+        <div class="reflect-error" id="reflect-error" style="display:none;"></div>
+      </div>
+      <div class="reflect-footer" id="reflect-footer">
+        <button class="reflect-save-btn" id="reflect-save-btn" onclick="saveReflection()">Save Reflection</button>
+      </div>
     </div>
   </div>
 
@@ -1166,42 +1215,79 @@ function updateWelcome() {
 
   const name = currentProfile.nickname || 'Champ';
   const greetingText = 'Welcome back, ' + name + ' 👋';
-  const anchorText = currentProfile.habit_anchor
-    ? '\u201c' + currentProfile.habit_anchor + '\u201d' // " curly quotes — safe unicode
-    : null;
+  const anchorText = currentProfile.habit_anchor || null;
 
-  // Always keep the anchor pill hidden — text rotates in the main greeting element instead
+  // Keep the anchor pill hidden — handled here instead
   document.getElementById('dash-anchor').style.display = 'none';
 
   const el = document.getElementById('dash-welcome');
 
-  // Clear any existing interval to prevent overlapping loops on dashboard refresh
+  // Clear any existing interval/timeout loops
   if (welcomeToggleInterval) {
     clearInterval(welcomeToggleInterval);
+    clearTimeout(welcomeToggleInterval);
     welcomeToggleInterval = null;
   }
 
-  // Set initial greeting text immediately
+  // Reset any inline scroll styles from a previous run
   el.style.opacity = '1';
-  el.textContent = greetingText;
+  el.style.transform = 'none';
+  el.style.transition = 'opacity 0.4s ease';
 
-  // No anchor set — show greeting only, no rotation needed
-  if (!anchorText) return;
+  // No anchor — show greeting permanently
+  if (!anchorText) {
+    el.textContent = greetingText;
+    return;
+  }
 
-  // Rotation state — alternates between greeting and anchor
-  let showingGreeting = true;
+  // ── ANCHOR MARQUEE LOGIC ──
+  // Show anchor text, scroll it if it overflows, then switch to greeting
+  function showAnchorAndScroll() {
+    el.textContent = '\u201c' + anchorText + '\u201d'; // " curly quotes
+    el.style.opacity = '1';
+    el.style.transform = 'translateX(0)';
+    el.style.transition = 'opacity 0.4s ease';
 
-  welcomeToggleInterval = setInterval(() => {
-    // Fade out
+    // Wait one frame so the DOM renders the text width
+    requestAnimationFrame(() => {
+      const overflow = el.scrollWidth - el.clientWidth;
+
+      if (overflow <= 0) {
+        // Text fits on one line — no scroll needed, just pause then switch
+        welcomeToggleInterval = setTimeout(switchToGreeting, 3000);
+        return;
+      }
+
+      // Text overflows — animate scroll left over proportional duration
+      const scrollDuration = Math.max(2000, overflow * 12); // ~12ms per px
+      el.style.transition = 'transform ' + scrollDuration + 'ms linear';
+      el.style.transform = 'translateX(-' + overflow + 'px)';
+
+      // After scroll completes, pause 2s then switch to greeting
+      welcomeToggleInterval = setTimeout(switchToGreeting, scrollDuration + 2000);
+    });
+  }
+
+  function switchToGreeting() {
+    // Fade out anchor text
+    el.style.transition = 'opacity 0.4s ease';
     el.style.opacity = '0';
     setTimeout(() => {
-      // Swap text while invisible
-      showingGreeting = !showingGreeting;
-      el.textContent = showingGreeting ? greetingText : anchorText;
-      // Fade back in
+      // Reset scroll position and show greeting
+      el.style.transition = 'none';
+      el.style.transform = 'translateX(0)';
+      el.textContent = greetingText;
+      el.style.transition = 'opacity 0.4s ease';
       el.style.opacity = '1';
-    }, 400); // Match CSS transition duration
-  }, 5000);
+      // After showing greeting for 4s, scroll anchor again
+      welcomeToggleInterval = setTimeout(showAnchorAndScroll, 4000);
+    }, 400);
+  }
+
+  // Start by showing greeting first, then anchor after 3s
+  el.textContent = greetingText;
+  el.style.opacity = '1';
+  welcomeToggleInterval = setTimeout(showAnchorAndScroll, 3000);
 }
 
 // ─────────────────────────────────────────
@@ -2000,8 +2086,12 @@ function showScreen(id) {
     // Pause the welcome rotation when not on dashboard — saves battery, avoids ghost updates
     if (welcomeToggleInterval) {
       clearInterval(welcomeToggleInterval);
+      clearTimeout(welcomeToggleInterval);
       welcomeToggleInterval = null;
     }
+    // Reset scroll transform so it doesn't carry over
+    const el = document.getElementById('dash-welcome');
+    if (el) { el.style.transform = 'translateX(0)'; el.style.transition = 'none'; }
   }
   window.scrollTo(0, 0);
 }
@@ -2063,6 +2153,160 @@ async function deleteAccount() {
     btn.disabled = false;
     btn.textContent = 'Delete Forever';
   }
+}
+
+// ─────────────────────────────────────────
+// REFLECTION MODAL
+// ─────────────────────────────────────────
+let reflectionDate = new Date(); // Currently viewed date in reflection modal
+
+function reflectionDateKey(date) {
+  // Returns YYYY-MM-DD string used as the date filter
+  return date.toISOString().split('T')[0];
+}
+
+function reflectionDateLabel(date) {
+  const now = new Date();
+  const yesterday = new Date(now); yesterday.setDate(now.getDate() - 1);
+  if (date.toDateString() === now.toDateString()) return 'Today';
+  if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
+  return date.toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+async function openReflection() {
+  reflectionDate = new Date(); // Always start on today
+  const modal = document.getElementById('reflection-modal');
+  modal.classList.add('show');
+  modal.style.display = 'flex';
+  await loadReflectionForDate();
+}
+
+function closeReflection() {
+  const modal = document.getElementById('reflection-modal');
+  modal.classList.remove('show');
+  modal.style.display = 'none';
+}
+
+function handleReflectionOverlayClick(e) {
+  if (e.target === document.getElementById('reflection-modal')) closeReflection();
+}
+
+function reflectionNavigate(delta) {
+  const now = new Date();
+  const newDate = new Date(reflectionDate);
+  newDate.setDate(reflectionDate.getDate() + delta);
+  if (newDate > now) return; // Block future
+  reflectionDate = newDate;
+  loadReflectionForDate();
+}
+
+async function loadReflectionForDate() {
+  const now = new Date();
+  const isToday = reflectionDate.toDateString() === now.toDateString();
+  const dateKey = reflectionDateKey(reflectionDate);
+
+  // Update nav controls
+  document.getElementById('reflect-date-label').textContent = reflectionDateLabel(reflectionDate);
+  document.getElementById('reflect-next').disabled = isToday;
+
+  const input = document.getElementById('reflect-input');
+  const saveBtn = document.getElementById('reflect-save-btn');
+  const readonlyLabel = document.getElementById('reflect-readonly-label');
+  const footer = document.getElementById('reflect-footer');
+  const errorEl = document.getElementById('reflect-error');
+  errorEl.style.display = 'none';
+
+  // Fetch existing reflection for this date
+  const dayStart = new Date(reflectionDate); dayStart.setHours(0,0,0,0);
+  const dayEnd = new Date(reflectionDate); dayEnd.setHours(23,59,59,999);
+
+  const { data } = await sb
+    .from('reflections')
+    .select('id, content, reflected_at')
+    .eq('user_id', currentUser.id)
+    .gte('reflected_at', dayStart.toISOString())
+    .lte('reflected_at', dayEnd.toISOString())
+    .order('reflected_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  input.value = data ? data.content : '';
+  updateReflectCount();
+
+  if (isToday) {
+    // Today — editable
+    input.removeAttribute('readonly');
+    input.style.cursor = 'text';
+    readonlyLabel.style.display = 'none';
+    footer.style.display = 'block';
+    saveBtn.disabled = false;
+    saveBtn.textContent = data ? 'Update Reflection' : 'Save Reflection';
+    saveBtn.dataset.existingId = data ? data.id : '';
+  } else {
+    // Past day — read only
+    input.setAttribute('readonly', true);
+    input.style.cursor = 'default';
+    readonlyLabel.style.display = 'inline';
+    footer.style.display = 'none';
+    if (!data) input.value = 'No reflection recorded for this day.';
+  }
+}
+
+function updateReflectCount() {
+  const val = document.getElementById('reflect-input').value;
+  document.getElementById('reflect-char').textContent = val.length;
+}
+
+async function saveReflection() {
+  const input = document.getElementById('reflect-input');
+  const content = input.value.trim();
+  const saveBtn = document.getElementById('reflect-save-btn');
+  const errorEl = document.getElementById('reflect-error');
+  errorEl.style.display = 'none';
+
+  if (!content) {
+    errorEl.textContent = 'Please write something before saving.';
+    errorEl.style.display = 'block';
+    return;
+  }
+
+  saveBtn.disabled = true;
+  saveBtn.textContent = 'Saving...';
+
+  const existingId = saveBtn.dataset.existingId;
+  let error;
+
+  if (existingId) {
+    // Update existing reflection
+    ({ error } = await sb
+      .from('reflections')
+      .update({ content, reflected_at: new Date().toISOString() })
+      .eq('id', existingId)
+      .eq('user_id', currentUser.id));
+  } else {
+    // Insert new reflection
+    ({ error } = await sb
+      .from('reflections')
+      .insert({ user_id: currentUser.id, content, reflected_at: new Date().toISOString() }));
+  }
+
+  if (error) {
+    errorEl.textContent = 'Could not save — please try again.';
+    errorEl.style.display = 'block';
+    saveBtn.disabled = false;
+    saveBtn.textContent = existingId ? 'Update Reflection' : 'Save Reflection';
+    return;
+  }
+
+  saveBtn.textContent = '✓ Saved!';
+  saveBtn.style.background = 'var(--ng-green)';
+  setTimeout(() => {
+    saveBtn.style.background = '';
+    saveBtn.textContent = 'Update Reflection';
+    saveBtn.disabled = false;
+    // Reload to get the new ID for future updates
+    loadReflectionForDate();
+  }, 1500);
 }
 
 // ─────────────────────────────────────────
