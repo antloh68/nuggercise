@@ -79,8 +79,8 @@
 
     /* ── WELCOME ── */
     /* ── ANCHOR SCROLL (single line marquee) ── */
-    .ng-welcome-wrap { overflow: hidden; width: 100%; }
-    .ng-welcome-name { font-size: 18px; font-weight: 600; color: var(--ng-text); transition: opacity 0.4s ease; white-space: nowrap; display: inline-block; padding-right: 24px; }
+    .ng-welcome-wrap { overflow: hidden; width: 100%; position: relative; }
+    .ng-welcome-name { font-size: 18px; font-weight: 600; color: var(--ng-text); transition: opacity 0.4s ease; white-space: nowrap; display: inline-block; padding-right: 32px; }
     /* ── REFLECTION MODAL ── */
     .reflect-sheet { background: var(--ng-surface); border-radius: var(--ng-radius); width: 100%; max-width: 400px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.25); max-height: 85vh; }
     .reflect-header { display: flex; align-items: center; gap: 6px; padding: 14px 16px; border-bottom: 1px solid var(--ng-border); }
@@ -1230,9 +1230,10 @@ function updateWelcome() {
     welcomeToggleInterval = null;
   }
 
-  // Reset any inline scroll styles from a previous run
+  // Reset wrapper scroll and opacity
+  const wrapper = el.parentElement;
+  if (wrapper) wrapper.scrollLeft = 0;
   el.style.opacity = '1';
-  el.style.transform = 'none';
   el.style.transition = 'opacity 0.4s ease';
 
   // No anchor — show greeting permanently
@@ -1242,31 +1243,42 @@ function updateWelcome() {
   }
 
   // ── ANCHOR MARQUEE LOGIC ──
-  // Wrapper clips, inner el scrolls — prevents right-edge truncation
+  // Scroll the WRAPPER using scrollLeft — browser clips correctly within card bounds
   function showAnchorAndScroll() {
     el.textContent = '\u201c' + anchorText + '\u201d';
     el.style.opacity = '1';
-    el.style.transform = 'translateX(0)';
+    el.style.transform = 'none';
     el.style.transition = 'opacity 0.4s ease';
 
+    const wrapper = el.parentElement;
+    wrapper.scrollLeft = 0; // Reset to start
+
     requestAnimationFrame(() => {
-      // Measure how far the text exceeds the clipping wrapper
-      const wrapper = el.parentElement;
       const overflow = el.scrollWidth - wrapper.clientWidth;
 
       if (overflow <= 0) {
-        // Text fits — no scroll, just pause then switch
+        // Text fits — no scroll needed, just pause then switch
         welcomeToggleInterval = setTimeout(switchToGreeting, 3000);
         return;
       }
 
-      // Animate scroll left — text slides until the end is fully visible
+      // Smoothly animate scrollLeft from 0 to overflow using JS
+      // (CSS scroll-behavior doesn't support completion callbacks)
       const scrollDuration = Math.max(2000, overflow * 12);
-      el.style.transition = 'transform ' + scrollDuration + 'ms linear';
-      el.style.transform = 'translateX(-' + overflow + 'px)';
+      const startTime = performance.now();
 
-      // Pause 2s at end then switch
-      welcomeToggleInterval = setTimeout(switchToGreeting, scrollDuration + 2000);
+      function animateScroll(now) {
+        const elapsed = now - startTime;
+        const progress = Math.min(elapsed / scrollDuration, 1);
+        wrapper.scrollLeft = progress * overflow;
+        if (progress < 1) {
+          requestAnimationFrame(animateScroll);
+        } else {
+          // Scroll complete — pause 2s at end then switch to greeting
+          welcomeToggleInterval = setTimeout(switchToGreeting, 2000);
+        }
+      }
+      requestAnimationFrame(animateScroll);
     });
   }
 
@@ -1275,9 +1287,9 @@ function updateWelcome() {
     el.style.transition = 'opacity 0.4s ease';
     el.style.opacity = '0';
     setTimeout(() => {
-      // Reset scroll position and show greeting
-      el.style.transition = 'none';
-      el.style.transform = 'translateX(0)';
+      // Reset wrapper scroll position and show greeting
+      const wrapper = el.parentElement;
+      wrapper.scrollLeft = 0;
       el.textContent = greetingText;
       el.style.transition = 'opacity 0.4s ease';
       el.style.opacity = '1';
@@ -2091,9 +2103,9 @@ function showScreen(id) {
       clearTimeout(welcomeToggleInterval);
       welcomeToggleInterval = null;
     }
-    // Reset scroll transform so it doesn't carry over
+    // Reset scroll position so it doesn't carry over
     const el = document.getElementById('dash-welcome');
-    if (el) { el.style.transform = 'translateX(0)'; el.style.transition = 'none'; }
+    if (el && el.parentElement) el.parentElement.scrollLeft = 0;
   }
   window.scrollTo(0, 0);
 }
