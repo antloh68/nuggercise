@@ -2052,29 +2052,71 @@ function launchConfetti(isLegendary) {
 // EXPORT CSV
 // ─────────────────────────────────────────
 async function exportCSV() {
-  const { data: logs } = await sb
-    .from('nuggercises')
-    .select('logged_at, metric_type, metric_value, description, feeling_rating')
-    .eq('user_id', currentUser.id)
-    .order('logged_at', { ascending: false });
+  // Fetch logs and reflections in parallel
+  const [{ data: logs }, { data: reflections }] = await Promise.all([
+    sb.from('nuggercises')
+      .select('logged_at, metric_type, metric_value, description, feeling_rating')
+      .eq('user_id', currentUser.id)
+      .order('logged_at', { ascending: false }),
+    sb.from('reflections')
+      .select('content, reflected_at')
+      .eq('user_id', currentUser.id)
+  ]);
 
   if (!logs || !logs.length) { alert('No logs to export yet!'); return; }
 
-  // Wrap every field in quotes and escape internal quotes — safe for Excel, Google Sheets, Numbers
-  const csvEscape = v => '"' + String(v ?? '').replace(/"/g, '""').replace(/[\r\n]+/g, ' ') + '"';
+  // Build a date-keyed map of reflections (YYYY-MM-DD in SGT → content)
+  // One reflection per day — use the most recent if multiple exist
+  const reflectionMap = new Map();
+  (reflections || []).forEach(r => {
+    const dateKey = new Date(r.reflected_at)
+      .toLocaleDateString('en-SG', { timeZone: 'Asia/Singapore',
+        year: 'numeric', month: '2-digit', day: '2-digit' });
+    if (!reflectionMap.has(dateKey)) reflectionMap.set(dateKey, r.content);
+  });
 
-  const headers = ['Date/Time (SGT)', 'Type', 'Value', 'Description', 'Feeling (1-5)'];
-  const rows = logs.map(l => [
-    new Date(l.logged_at).toLocaleString('en-SG', { timeZone: 'Asia/Singapore' }),
-    l.metric_type,
-    l.metric_value,
-    l.description || '',
-    l.feeling_rating
-  ]);
+  // ── CSV ESCAPING ──
+  // Handles: commas, double quotes, newlines, tabs, emoji, unicode, symbols
+  // Every field wrapped in double quotes — internal quotes doubled per RFC 4180
+  const csvEscape = v => {
+    const str = String(v ?? '')
+      .replace(/[\r\n]+/g, ' ')  // Flatten newlines — prevent row breaks mid-field
+      .replace(/\t/g, ' ');      // Flatten tabs — prevent column breaks mid-field
+    return '"' + str.replace(/"/g, '""') + '"'; // Wrap + escape internal quotes
+  };
+
+  const FEELINGS = { 1: '😞 Poor', 2: '😐 Okay', 3: '🙂 Good', 4: '😁 Great', 5: '🤩 Amazing' };
+
+  const headers = ['Date (SGT)', 'Time (SGT)', 'Type', 'Value', 'Description', 'Feeling', 'Daily Reflection'];
+
+  // Track which dates have already had their reflection shown
+  const reflectionShown = new Set();
+
+  const rows = logs.map(l => {
+    const sgtDate = new Date(l.logged_at).toLocaleDateString('en-SG', {
+      timeZone: 'Asia/Singapore', year: 'numeric', month: '2-digit', day: '2-digit'
+    });
+    const sgtTime = new Date(l.logged_at).toLocaleTimeString('en-SG', {
+      timeZone: 'Asia/Singapore', hour: '2-digit', minute: '2-digit', hour12: true
+    });
+    // Show reflection only on the first log row for that date
+    const reflection = (!reflectionShown.has(sgtDate) && reflectionMap.get(sgtDate))
+      ? (reflectionShown.add(sgtDate), reflectionMap.get(sgtDate))
+      : '';
+    return [
+      sgtDate,
+      sgtTime,
+      l.metric_type,
+      l.metric_value,
+      l.description || '',
+      FEELINGS[l.feeling_rating] || l.feeling_rating,
+      reflection
+    ];
+  });
 
   const csv = [headers, ...rows]
     .map(r => r.map(csvEscape).join(','))
-    .join('\n');
+    .join('\r\n'); // CRLF line endings — RFC 4180 standard, correct for Excel on Windows
 
   const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' }); // BOM for Excel UTF-8
   const url = URL.createObjectURL(blob);
