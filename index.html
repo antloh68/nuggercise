@@ -1245,7 +1245,7 @@ function updateWelcome() {
   // ── ANCHOR MARQUEE LOGIC ──
   // Scroll the WRAPPER using scrollLeft — browser clips correctly within card bounds
   function showAnchorAndScroll() {
-    el.textContent = '\u201c' + anchorText + '\u201d';
+    el.textContent = anchorText;
     el.style.opacity = '1';
     el.style.transform = 'none';
     el.style.transition = 'opacity 0.4s ease';
@@ -1262,23 +1262,24 @@ function updateWelcome() {
         return;
       }
 
-      // Smoothly animate scrollLeft from 0 to overflow using JS
-      // (CSS scroll-behavior doesn't support completion callbacks)
-      const scrollDuration = Math.max(2000, overflow * 12);
-      const startTime = performance.now();
+      // Pause 1 second before scrolling so user can read the start of the text
+      welcomeToggleInterval = setTimeout(() => {
+        const scrollDuration = Math.max(2000, overflow * 12);
+        const startTime = performance.now();
 
-      function animateScroll(now) {
-        const elapsed = now - startTime;
-        const progress = Math.min(elapsed / scrollDuration, 1);
-        wrapper.scrollLeft = progress * overflow;
-        if (progress < 1) {
-          requestAnimationFrame(animateScroll);
-        } else {
-          // Scroll complete — pause 2s at end then switch to greeting
-          welcomeToggleInterval = setTimeout(switchToGreeting, 2000);
+        function animateScroll(now) {
+          const elapsed = now - startTime;
+          const progress = Math.min(elapsed / scrollDuration, 1);
+          wrapper.scrollLeft = progress * overflow;
+          if (progress < 1) {
+            requestAnimationFrame(animateScroll);
+          } else {
+            // Scroll complete — pause 2s at end then switch to greeting
+            welcomeToggleInterval = setTimeout(switchToGreeting, 2000);
+          }
         }
-      }
-      requestAnimationFrame(animateScroll);
+        requestAnimationFrame(animateScroll);
+      }, 1000);
     });
   }
 
