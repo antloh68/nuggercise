@@ -142,22 +142,26 @@
     /* ── TODAY LOG ── */
     .ng-log-empty { font-size: 13px; color: var(--ng-subtle); text-align: center; padding: 12px 0; }
     .ng-log-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--ng-border); }
-    .ng-log-delete { background: none; border: none; cursor: pointer; color: var(--ng-subtle); font-size: 15px; padding: 4px 6px; border-radius: 6px; flex-shrink: 0; transition: color 0.12s, background 0.12s; margin-left: auto; }
+    .ng-log-delete { background: none; border: none; cursor: pointer; color: var(--ng-subtle); font-size: 15px; padding: 4px 6px; border-radius: 6px; flex-shrink: 0; transition: color 0.12s, background 0.12s; }
     .ng-log-delete:active { color: #DC2626; background: #FEF2F2; }
-    /* ── HISTORY DELETE BUTTON ── */
-    .history-delete { background: none; border: none; cursor: pointer; color: var(--ng-subtle); font-size: 15px; padding: 4px 6px; border-radius: 6px; flex-shrink: 0; transition: color 0.12s, background 0.12s; margin-left: auto; }
+    .ng-log-edit { background: none; border: none; cursor: pointer; color: var(--ng-subtle); font-size: 15px; padding: 4px 6px; border-radius: 6px; flex-shrink: 0; transition: color 0.12s, background 0.12s; }
+    .ng-log-edit:active { color: var(--ng-orange); background: var(--ng-orange-light); }
+    /* ── HISTORY BUTTONS ── */
+    .history-delete { background: none; border: none; cursor: pointer; color: var(--ng-subtle); font-size: 15px; padding: 4px 6px; border-radius: 6px; flex-shrink: 0; transition: color 0.12s, background 0.12s; }
     .history-delete:active { color: #DC2626; background: #FEF2F2; }
+    .history-edit { background: none; border: none; cursor: pointer; color: var(--ng-subtle); font-size: 15px; padding: 4px 6px; border-radius: 6px; flex-shrink: 0; transition: color 0.12s, background 0.12s; }
+    .history-edit:active { color: var(--ng-orange); background: var(--ng-orange-light); }
     /* ── UNDO TOAST ── */
     .ng-undo-toast { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%) translateY(20px); background: #1A1A1A; color: #fff; padding: 10px 8px 10px 18px; border-radius: 24px; font-size: 13px; font-weight: 500; z-index: 75; opacity: 0; transition: opacity 0.25s, transform 0.25s; pointer-events: none; white-space: nowrap; display: flex; align-items: center; gap: 10px; }
     .ng-undo-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); pointer-events: auto; }
     .ng-undo-btn { background: none; border: 1.5px solid rgba(255,255,255,0.5); border-radius: 12px; color: #FF6B35; font-size: 13px; font-weight: 700; padding: 3px 12px; cursor: pointer; }
-    .history-delete { background: none; border: none; cursor: pointer; color: var(--ng-subtle); font-size: 15px; padding: 4px 6px; border-radius: 6px; flex-shrink: 0; transition: color 0.12s, background 0.12s; margin-left: auto; }
-    .history-delete:active { color: #DC2626; background: #FEF2F2; }
     .ng-log-item:last-child { border-bottom: none; }
     .ng-log-time { font-size: 11px; color: var(--ng-subtle); min-width: 56px; }
     .ng-log-badge { font-size: 11px; background: var(--ng-orange-light); color: var(--ng-orange-dark); border-radius: 5px; padding: 2px 7px; font-weight: 600; white-space: nowrap; }
     .ng-log-desc { font-size: 13px; color: var(--ng-text); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .ng-log-feel { font-size: 16px; }
+    /* ── EDIT MODE INDICATOR ── */
+    .ng-log-form-edit-banner { background: var(--ng-orange-light); border-radius: var(--ng-radius-sm); padding: 8px 12px; font-size: 13px; color: var(--ng-orange-dark); font-weight: 600; text-align: center; margin-bottom: 4px; }
 
     /* ── FAB ── */
     .ng-fab { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%); width: 58px; height: 58px; border-radius: 50%; background: var(--ng-orange); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 30px; font-weight: 300; box-shadow: 0 4px 18px rgba(255,107,53,0.38); transition: transform 0.15s, box-shadow 0.15s; z-index: 20; }
@@ -669,7 +673,8 @@ let isSignup = false;
 let weekLogs = [];
 let appLoaded = false;
 let isRecoveryMode = false;
-let activeDate = new Date(); // Currently viewed date on dashboard
+let activeDate = new Date();
+let editingLogId = null; // null = new log, string UUID = editing existing entry // Currently viewed date on dashboard
 let welcomeToggleInterval = null; // Handle for welcome/anchor rotation interval
 const DEFAULT_NUGGETS = [
   { label: '20 Squats',    emoji: '🦵', type: 'reps',    value: 20 },
@@ -1571,12 +1576,26 @@ function buildDayLog(logs) {
     const feel = document.createElement('div');
     feel.className = 'ng-log-feel';
     feel.textContent = FEELINGS[l.feeling_rating] || '';
+    // Only show edit/delete for entries within last 24 hours
+    const entryAge = Date.now() - new Date(l.logged_at).getTime();
+    const isEditable = entryAge <= 24 * 60 * 60 * 1000;
+    const btnWrap = document.createElement('div');
+    btnWrap.style.cssText = 'display:flex;align-items:center;gap:2px;flex-shrink:0;';
+    if (isEditable) {
+      const editBtn = document.createElement('button');
+      editBtn.className = 'ng-log-edit';
+      editBtn.textContent = '✏️';
+      editBtn.setAttribute('aria-label', 'Edit entry');
+      editBtn.onclick = () => editNuggercise(l);
+      btnWrap.appendChild(editBtn);
+    }
     const delBtn = document.createElement('button');
     delBtn.className = 'ng-log-delete';
     delBtn.textContent = '🗑';
     delBtn.setAttribute('aria-label', 'Delete entry');
     delBtn.onclick = () => deleteNuggercise(l.id, item, 'dashboard');
-    item.appendChild(time); item.appendChild(badge); item.appendChild(desc); item.appendChild(feel); item.appendChild(delBtn);
+    btnWrap.appendChild(delBtn);
+    item.appendChild(time); item.appendChild(badge); item.appendChild(desc); item.appendChild(feel); item.appendChild(btnWrap);
     fragment.appendChild(item);
   });
   // Single DOM write
@@ -1613,12 +1632,25 @@ async function openHistory(dayDate) {
       const badge = document.createElement('div'); badge.className = 'history-badge'; badge.textContent = l.metric_value + (l.metric_type === 'reps' ? ' Reps' : ' Min');
       const desc = document.createElement('div'); desc.className = 'history-desc'; desc.textContent = l.description || '—';
       const feel = document.createElement('div'); feel.className = 'history-feel'; feel.textContent = FEELINGS[l.feeling_rating] || '';
+      const entryAge = Date.now() - new Date(l.logged_at).getTime();
+      const isEditable = entryAge <= 24 * 60 * 60 * 1000;
+      const btnWrap = document.createElement('div');
+      btnWrap.style.cssText = 'display:flex;align-items:center;gap:2px;flex-shrink:0;';
+      if (isEditable) {
+        const editBtn = document.createElement('button');
+        editBtn.className = 'history-edit';
+        editBtn.textContent = '✏️';
+        editBtn.setAttribute('aria-label', 'Edit entry');
+        editBtn.onclick = () => { closeHistory(); editNuggercise(l); };
+        btnWrap.appendChild(editBtn);
+      }
       const delBtn = document.createElement('button');
       delBtn.className = 'history-delete';
       delBtn.textContent = '🗑';
       delBtn.setAttribute('aria-label', 'Delete entry');
       delBtn.onclick = () => deleteNuggercise(l.id, item, 'history');
-      item.appendChild(dateEl); item.appendChild(badge); item.appendChild(desc); item.appendChild(feel); item.appendChild(delBtn);
+      btnWrap.appendChild(delBtn);
+      item.appendChild(dateEl); item.appendChild(badge); item.appendChild(desc); item.appendChild(feel); item.appendChild(btnWrap);
       list.appendChild(item);
     });
   }
@@ -1626,9 +1658,45 @@ async function openHistory(dayDate) {
 }
 
 function closeHistory(e) {
-  if (e.target === document.getElementById('history-modal')) {
+  // Called with event (overlay click) or programmatically (no argument)
+  if (!e || e.target === document.getElementById('history-modal')) {
     document.getElementById('history-modal').classList.remove('show');
   }
+}
+
+function editNuggercise(log) {
+  // Set global edit state — submitLog will use this to UPDATE instead of INSERT
+  editingLogId = log.id;
+  // Navigate to log form
+  showScreen('screen-log');
+  // Pre-fill form with existing values
+  const loggedAt = new Date(log.logged_at);
+  const local = new Date(loggedAt.getTime() - loggedAt.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+  document.getElementById('log-datetime').value = local;
+  // Pre-select type
+  setType(log.metric_type);
+  // Pre-fill value
+  document.getElementById('log-value').value = log.metric_value;
+  // Pre-fill description
+  const descEl = document.getElementById('log-desc');
+  descEl.value = log.description || '';
+  document.getElementById('char-count').textContent = descEl.value.length;
+  // Pre-select feeling
+  selectedFeeling = log.feeling_rating;
+  document.querySelectorAll('.ng-emoji-btn').forEach(b => {
+    b.classList.toggle('selected', parseInt(b.dataset.val) === log.feeling_rating);
+  });
+  // Show edit mode banner
+  const existing = document.getElementById('edit-mode-banner');
+  if (existing) existing.remove();
+  const banner = document.createElement('div');
+  banner.id = 'edit-mode-banner';
+  banner.className = 'ng-log-form-edit-banner';
+  banner.textContent = '✏️ Editing existing entry';
+  const body = document.querySelector('#screen-log .ng-body');
+  body.insertBefore(banner, body.firstChild);
+  // Update submit button label
+  document.getElementById('submit-btn').textContent = 'Update Entry ✏️';
 }
 
 // ─────────────────────────────────────────
@@ -1638,7 +1706,7 @@ function initLogForm() {
   const now = new Date();
   now.setSeconds(0, 0);
   const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
-  const minDate = new Date(now.getTime() - 48 * 60 * 60 * 1000);
+  const minDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
   const minLocal = new Date(minDate.getTime() - minDate.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
   const dtInput = document.getElementById('log-datetime');
   dtInput.value = local;
@@ -1655,6 +1723,11 @@ function initLogForm() {
   document.getElementById('err-value').classList.remove('show');
   document.getElementById('err-feeling').classList.remove('show');
   document.getElementById('submit-btn').disabled = false;
+  document.getElementById('submit-btn').textContent = 'Log It! 🔥';
+  // Reset edit mode
+  editingLogId = null;
+  const banner = document.getElementById('edit-mode-banner');
+  if (banner) banner.remove();
 }
 
 function quickFill(btn, type, value, desc) {
@@ -1721,8 +1794,8 @@ async function submitLog() {
       errValueEl.textContent = 'Date cannot be in the future.';
       errValueEl.classList.add('show');
       hasError = true;
-    } else if (timeDiff > 48 * 60 * 60 * 1000) {
-      errValueEl.textContent = 'Date must be within the last 48 hours.';
+    } else if (timeDiff > 24 * 60 * 60 * 1000) {
+      errValueEl.textContent = 'Date must be within the last 24 hours.';
       errValueEl.classList.add('show');
       hasError = true;
     }
@@ -1738,26 +1811,47 @@ async function submitLog() {
 
   const btn = document.getElementById('submit-btn');
   btn.disabled = true;
-  btn.textContent = 'Logging...';
+  btn.textContent = editingLogId ? 'Updating...' : 'Logging...';
 
-  const loggedAt = new Date(datetimeVal).toISOString();
-  const { error } = await sb.from('nuggercises').insert({
-    user_id: currentUser.id,
-    logged_at: loggedAt,
-    metric_type: selectedType,
-    metric_value: val,
-    description: desc.slice(0, 250) || null,
-    feeling_rating: selectedFeeling
-  });
+  let error;
+
+  if (editingLogId) {
+    // EDIT MODE — update only editable fields, keep logged_at unchanged
+    ({ error } = await sb
+      .from('nuggercises')
+      .update({
+        metric_type: selectedType,
+        metric_value: val,
+        description: desc.slice(0, 250) || null,
+        feeling_rating: selectedFeeling
+      })
+      .eq('id', editingLogId)
+      .eq('user_id', currentUser.id));
+  } else {
+    // NEW LOG — insert with logged_at from datetime picker
+    const loggedAt = new Date(datetimeVal).toISOString();
+    ({ error } = await sb.from('nuggercises').insert({
+      user_id: currentUser.id,
+      logged_at: loggedAt,
+      metric_type: selectedType,
+      metric_value: val,
+      description: desc.slice(0, 250) || null,
+      feeling_rating: selectedFeeling
+    }));
+  }
 
   if (error) {
     btn.disabled = false;
-    btn.textContent = 'Log It! 🔥';
-    // Generic fallback for any DB error
+    btn.textContent = editingLogId ? 'Update Entry ✏️' : 'Log It! 🔥';
     errValueEl.textContent = 'Something went wrong. Please try again.';
     errValueEl.classList.add('show');
     return;
   }
+
+  // Reset edit state
+  editingLogId = null;
+  const banner = document.getElementById('edit-mode-banner');
+  if (banner) banner.remove();
 
   await refreshDashboard();
   const { phrase, tier } = pickPhrase();
@@ -2281,6 +2375,9 @@ function reflectionNavigate(delta) {
 async function loadReflectionForDate() {
   const now = new Date();
   const isToday = reflectionDate.toDateString() === now.toDateString();
+  const yesterday = new Date(now); yesterday.setDate(now.getDate() - 1);
+  const isYesterday = reflectionDate.toDateString() === yesterday.toDateString();
+  const isEditable = isToday || isYesterday; // Editable within last 24hrs (today + yesterday)
   const dateKey = reflectionDateKey(reflectionDate);
 
   // Update nav controls
@@ -2311,8 +2408,8 @@ async function loadReflectionForDate() {
   input.value = data ? data.content : '';
   updateReflectCount();
 
-  if (isToday) {
-    // Today — editable
+  if (isEditable) {
+    // Today or yesterday — editable
     input.removeAttribute('readonly');
     input.style.cursor = 'text';
     readonlyLabel.style.display = 'none';
@@ -2321,7 +2418,7 @@ async function loadReflectionForDate() {
     saveBtn.textContent = data ? 'Update Reflection' : 'Save Reflection';
     saveBtn.dataset.existingId = data ? data.id : '';
   } else {
-    // Past day — read only
+    // Older than yesterday — read only
     input.setAttribute('readonly', true);
     input.style.cursor = 'default';
     readonlyLabel.style.display = 'inline';
