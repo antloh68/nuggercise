@@ -2378,7 +2378,6 @@ async function loadReflectionForDate() {
   const yesterday = new Date(now); yesterday.setDate(now.getDate() - 1);
   const isYesterday = reflectionDate.toDateString() === yesterday.toDateString();
   const isEditable = isToday || isYesterday; // Editable within last 24hrs (today + yesterday)
-  const dateKey = reflectionDateKey(reflectionDate);
 
   // Update nav controls
   document.getElementById('reflect-date-label').textContent = reflectionDateLabel(reflectionDate);
@@ -2391,16 +2390,30 @@ async function loadReflectionForDate() {
   const errorEl = document.getElementById('reflect-error');
   errorEl.style.display = 'none';
 
-  // Fetch existing reflection for this date
-  const dayStart = new Date(reflectionDate); dayStart.setHours(0,0,0,0);
-  const dayEnd = new Date(reflectionDate); dayEnd.setHours(23,59,59,999);
+  // ── FIX: Use UTC date boundaries to match Supabase timestamps ──
+  // Create UTC date boundaries for the selected date
+  const dateKey = reflectionDateKey(reflectionDate); // YYYY-MM-DD
+  // Build UTC start (00:00:00 UTC) and end (23:59:59.999 UTC) for the date
+  const dayStartUTC = new Date(Date.UTC(
+    reflectionDate.getFullYear(),
+    reflectionDate.getMonth(),
+    reflectionDate.getDate(),
+    0, 0, 0, 0
+  ));
+  const dayEndUTC = new Date(Date.UTC(
+    reflectionDate.getFullYear(),
+    reflectionDate.getMonth(),
+    reflectionDate.getDate(),
+    23, 59, 59, 999
+  ));
 
+  // Query using UTC timestamps
   const { data } = await sb
     .from('reflections')
     .select('id, content, reflected_at')
     .eq('user_id', currentUser.id)
-    .gte('reflected_at', dayStart.toISOString())
-    .lte('reflected_at', dayEnd.toISOString())
+    .gte('reflected_at', dayStartUTC.toISOString())
+    .lte('reflected_at', dayEndUTC.toISOString())
     .order('reflected_at', { ascending: false })
     .limit(1)
     .maybeSingle();
