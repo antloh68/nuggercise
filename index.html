@@ -611,7 +611,7 @@
         <div class="reflect-error" id="reflect-error" style="display:none;"></div>
       </div>
       <div class="reflect-footer" id="reflect-footer">
-        <button class="reflect-save-btn" id="reflect-save-btn" onclick="saveReflection()">Save Reflection</button>
+        <button class="reflect-save-btn" id="reflect-save-btn" onclick="()">Save Reflection</button>
       </div>
     </div>
   </div>
@@ -2465,14 +2465,27 @@ async function saveReflection() {
   let error;
 
   if (existingId) {
-    // Update existing reflection
+    // Preserve the original reflected_at date when updating
+    const { data: existingReflection } = await sb
+      .from('reflections')
+      .select('reflected_at')
+      .eq('id', existingId)
+      .eq('user_id', currentUser.id)
+      .single();
+
+    const preservedTimestamp = existingReflection 
+      ? existingReflection.reflected_at 
+      : new Date().toISOString();
+
     ({ error } = await sb
       .from('reflections')
-      .update({ content, reflected_at: new Date().toISOString() })
+      .update({ 
+        content, 
+        reflected_at: preservedTimestamp
+      })
       .eq('id', existingId)
       .eq('user_id', currentUser.id));
   } else {
-    // Insert new reflection
     ({ error } = await sb
       .from('reflections')
       .insert({ user_id: currentUser.id, content, reflected_at: new Date().toISOString() }));
@@ -2492,7 +2505,6 @@ async function saveReflection() {
     saveBtn.style.background = '';
     saveBtn.textContent = 'Update Reflection';
     saveBtn.disabled = false;
-    // Reload to get the new ID for future updates
     loadReflectionForDate();
   }, 1500);
 }
