@@ -2377,7 +2377,7 @@ async function loadReflectionForDate() {
   const isToday = reflectionDate.toDateString() === now.toDateString();
   const yesterday = new Date(now); yesterday.setDate(now.getDate() - 1);
   const isYesterday = reflectionDate.toDateString() === yesterday.toDateString();
-  const isEditable = isToday || isYesterday; // Editable within last 24hrs (today + yesterday)
+  const isEditable = isToday || isYesterday;
 
   // Update nav controls
   document.getElementById('reflect-date-label').textContent = reflectionDateLabel(reflectionDate);
@@ -2390,10 +2390,7 @@ async function loadReflectionForDate() {
   const errorEl = document.getElementById('reflect-error');
   errorEl.style.display = 'none';
 
-  // ── FIX: Use UTC date boundaries to match Supabase timestamps ──
-  // Create UTC date boundaries for the selected date
-  const dateKey = reflectionDateKey(reflectionDate); // YYYY-MM-DD
-  // Build UTC start (00:00:00 UTC) and end (23:59:59.999 UTC) for the date
+  // Use UTC date boundaries
   const dayStartUTC = new Date(Date.UTC(
     reflectionDate.getFullYear(),
     reflectionDate.getMonth(),
@@ -2407,7 +2404,6 @@ async function loadReflectionForDate() {
     23, 59, 59, 999
   ));
 
-  // Query using UTC timestamps
   const { data } = await sb
     .from('reflections')
     .select('id, content, reflected_at')
@@ -2422,7 +2418,6 @@ async function loadReflectionForDate() {
   updateReflectCount();
 
   if (isEditable) {
-    // Today or yesterday — editable
     input.removeAttribute('readonly');
     input.style.cursor = 'text';
     readonlyLabel.style.display = 'none';
@@ -2431,7 +2426,6 @@ async function loadReflectionForDate() {
     saveBtn.textContent = data ? 'Update Reflection' : 'Save Reflection';
     saveBtn.dataset.existingId = data ? data.id : '';
   } else {
-    // Older than yesterday — read only
     input.setAttribute('readonly', true);
     input.style.cursor = 'default';
     readonlyLabel.style.display = 'inline';
@@ -2466,12 +2460,20 @@ async function saveReflection() {
 
   if (existingId) {
     // Preserve the original reflected_at date when updating
-    const { data: existingReflection } = await sb
+    const { data: existingReflection, error: fetchError } = await sb
       .from('reflections')
       .select('reflected_at')
       .eq('id', existingId)
       .eq('user_id', currentUser.id)
       .single();
+
+    if (fetchError) {
+      errorEl.textContent = 'Could not fetch existing reflection. Please try again.';
+      errorEl.style.display = 'block';
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Update Reflection';
+      return;
+    }
 
     const preservedTimestamp = existingReflection 
       ? existingReflection.reflected_at 
@@ -2501,11 +2503,12 @@ async function saveReflection() {
 
   saveBtn.textContent = '✓ Saved!';
   saveBtn.style.background = 'var(--ng-green)';
-  setTimeout(() => {
+  
+  setTimeout(async () => {
     saveBtn.style.background = '';
     saveBtn.textContent = 'Update Reflection';
     saveBtn.disabled = false;
-    loadReflectionForDate();
+    await loadReflectionForDate();
   }, 1500);
 }
 
