@@ -2452,6 +2452,8 @@ async function saveReflection() {
     return;
   }
 
+  const currentReflectionDate = new Date(reflectionDate);
+
   saveBtn.disabled = true;
   saveBtn.textContent = 'Saving...';
 
@@ -2459,7 +2461,6 @@ async function saveReflection() {
   let error;
 
   if (existingId) {
-    // Preserve the original reflected_at date when updating
     const { data: existingReflection, error: fetchError } = await sb
       .from('reflections')
       .select('reflected_at')
@@ -2508,6 +2509,7 @@ async function saveReflection() {
     saveBtn.style.background = '';
     saveBtn.textContent = 'Update Reflection';
     saveBtn.disabled = false;
+    reflectionDate = currentReflectionDate;
     await loadReflectionForDate();
   }, 1500);
 }
