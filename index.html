@@ -2452,7 +2452,17 @@ async function saveReflection() {
     return;
   }
 
+  // Capture the date we're currently viewing (before async operations)
   const currentReflectionDate = new Date(reflectionDate);
+
+  // ── FIX: Compute a fixed timestamp on that date (noon UTC) ──
+  // Using noon avoids boundary issues (00:00 UTC might shift for some timezones)
+  const fixedTimestamp = new Date(Date.UTC(
+    currentReflectionDate.getFullYear(),
+    currentReflectionDate.getMonth(),
+    currentReflectionDate.getDate(),
+    12, 0, 0, 0
+  )).toISOString();
 
   saveBtn.disabled = true;
   saveBtn.textContent = 'Saving...';
@@ -2461,37 +2471,25 @@ async function saveReflection() {
   let error;
 
   if (existingId) {
-    const { data: existingReflection, error: fetchError } = await sb
-      .from('reflections')
-      .select('reflected_at')
-      .eq('id', existingId)
-      .eq('user_id', currentUser.id)
-      .single();
-
-    if (fetchError) {
-      errorEl.textContent = 'Could not fetch existing reflection. Please try again.';
-      errorEl.style.display = 'block';
-      saveBtn.disabled = false;
-      saveBtn.textContent = 'Update Reflection';
-      return;
-    }
-
-    const preservedTimestamp = existingReflection 
-      ? existingReflection.reflected_at 
-      : new Date().toISOString();
-
+    // Update existing reflection — overwrite the timestamp with our fixed date
+    // (This ensures it stays on the correct day even if the original timestamp drifted)
     ({ error } = await sb
       .from('reflections')
-      .update({ 
-        content, 
-        reflected_at: preservedTimestamp
+      .update({
+        content,
+        reflected_at: fixedTimestamp   // <-- Use fixed date instead of preserving
       })
       .eq('id', existingId)
       .eq('user_id', currentUser.id));
   } else {
+    // Insert new reflection with the fixed timestamp for that day
     ({ error } = await sb
       .from('reflections')
-      .insert({ user_id: currentUser.id, content, reflected_at: new Date().toISOString() }));
+      .insert({
+        user_id: currentUser.id,
+        content,
+        reflected_at: fixedTimestamp   // <-- Use fixed date, not current time
+      }));
   }
 
   if (error) {
@@ -2504,11 +2502,12 @@ async function saveReflection() {
 
   saveBtn.textContent = '✓ Saved!';
   saveBtn.style.background = 'var(--ng-green)';
-  
+
   setTimeout(async () => {
     saveBtn.style.background = '';
     saveBtn.textContent = 'Update Reflection';
     saveBtn.disabled = false;
+    // Ensure we reload the same date we saved on
     reflectionDate = currentReflectionDate;
     await loadReflectionForDate();
   }, 1500);
