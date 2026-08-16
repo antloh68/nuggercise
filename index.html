@@ -1665,28 +1665,24 @@ function closeHistory(e) {
 }
 
 function editNuggercise(log) {
-  // Set global edit state — submitLog will use this to UPDATE instead of INSERT
-  editingLogId = log.id;
-  // Navigate to log form
-  showScreen('screen-log');
-  // Pre-fill form with existing values
+  editingLogId = log.id;                           // <-- Must be set first
+  showScreen('screen-log');                        // Now initLogForm will keep it
+
+  // Pre-fill form values (these will survive initLogForm because we skip reset)
   const loggedAt = new Date(log.logged_at);
   const local = new Date(loggedAt.getTime() - loggedAt.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
   document.getElementById('log-datetime').value = local;
-  // Pre-select type
   setType(log.metric_type);
-  // Pre-fill value
   document.getElementById('log-value').value = log.metric_value;
-  // Pre-fill description
   const descEl = document.getElementById('log-desc');
   descEl.value = log.description || '';
   document.getElementById('char-count').textContent = descEl.value.length;
-  // Pre-select feeling
   selectedFeeling = log.feeling_rating;
   document.querySelectorAll('.ng-emoji-btn').forEach(b => {
     b.classList.toggle('selected', parseInt(b.dataset.val) === log.feeling_rating);
   });
-  // Show edit mode banner
+
+  // Show edit banner
   const existing = document.getElementById('edit-mode-banner');
   if (existing) existing.remove();
   const banner = document.createElement('div');
@@ -1695,7 +1691,7 @@ function editNuggercise(log) {
   banner.textContent = '✏️ Editing existing entry';
   const body = document.querySelector('#screen-log .ng-body');
   body.insertBefore(banner, body.firstChild);
-  // Update submit button label
+
   document.getElementById('submit-btn').textContent = 'Update Entry ✏️';
 }
 
@@ -1709,9 +1705,17 @@ function initLogForm() {
   const minDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
   const minLocal = new Date(minDate.getTime() - minDate.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
   const dtInput = document.getElementById('log-datetime');
-  dtInput.value = local;
   dtInput.max = local;
   dtInput.min = minLocal;
+
+  // ── FIX: If we are editing, do NOT reset form fields ──
+  if (editingLogId) {
+    // Editing: keep all pre-filled values, only update datetime constraints
+    return;
+  }
+
+  // New log: reset everything
+  dtInput.value = local;
   selectedFeeling = 0;
   selectedType = 'reps';
   document.querySelectorAll('.ng-quick-btn').forEach(b => b.classList.remove('selected'));
@@ -1724,10 +1728,10 @@ function initLogForm() {
   document.getElementById('err-feeling').classList.remove('show');
   document.getElementById('submit-btn').disabled = false;
   document.getElementById('submit-btn').textContent = 'Log It! 🔥';
-  // Reset edit mode
-  editingLogId = null;
+  // Remove any lingering edit banner
   const banner = document.getElementById('edit-mode-banner');
   if (banner) banner.remove();
+  editingLogId = null;
 }
 
 function quickFill(btn, type, value, desc) {
@@ -2250,18 +2254,26 @@ async function exportCSV() {
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
+
+  // ── FIX: If we leave the log screen without saving, reset edit state ──
+  if (id !== 'screen-log') {
+    editingLogId = null;
+    const banner = document.getElementById('edit-mode-banner');
+    if (banner) banner.remove();
+    // Reset submit button text just in case
+    document.getElementById('submit-btn').textContent = 'Log It! 🔥';
+  }
+
   if (id === 'screen-log') initLogForm();
   if (id === 'screen-settings') renderNuggetEditor();
   if (id === 'screen-dashboard') {
-    activeDate = new Date(); // Reset to today when returning to dashboard
+    activeDate = new Date();
   } else {
-    // Pause the welcome rotation when not on dashboard — saves battery, avoids ghost updates
     if (welcomeToggleInterval) {
       clearInterval(welcomeToggleInterval);
       clearTimeout(welcomeToggleInterval);
       welcomeToggleInterval = null;
     }
-    // Reset scroll position so it doesn't carry over
     const el = document.getElementById('dash-welcome');
     if (el && el.parentElement) el.parentElement.scrollLeft = 0;
   }
