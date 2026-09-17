@@ -1789,8 +1789,8 @@ async function submitLog() {
     hasError = true;
   }
 
-  // Validate datetime — client-side pre-check before hitting Supabase
-  if (datetimeVal) {
+  // Validate datetime — skip in edit mode since logged_at is never changed on update
+  if (!editingLogId && datetimeVal) {
     const chosenDate = new Date(datetimeVal);
     const now = new Date();
     const timeDiff = now - chosenDate;
