@@ -1789,8 +1789,8 @@ async function submitLog() {
     hasError = true;
   }
 
-  // Validate datetime — skip in edit mode since logged_at is never changed on update
-  if (!editingLogId && datetimeVal) {
+  // Validate datetime — applies to BOTH new logs and edits
+  if (datetimeVal) {
     const chosenDate = new Date(datetimeVal);
     const now = new Date();
     const timeDiff = now - chosenDate;
@@ -1817,13 +1817,15 @@ async function submitLog() {
   btn.disabled = true;
   btn.textContent = editingLogId ? 'Updating...' : 'Logging...';
 
+  const loggedAt = new Date(datetimeVal).toISOString();
   let error;
 
   if (editingLogId) {
-    // EDIT MODE — update only editable fields, keep logged_at unchanged
+    // ── EDIT MODE — now also updates logged_at ──
     ({ error } = await sb
       .from('nuggercises')
       .update({
+        logged_at: loggedAt,          // <-- ADDED: apply the new timestamp
         metric_type: selectedType,
         metric_value: val,
         description: desc.slice(0, 250) || null,
@@ -1832,8 +1834,7 @@ async function submitLog() {
       .eq('id', editingLogId)
       .eq('user_id', currentUser.id));
   } else {
-    // NEW LOG — insert with logged_at from datetime picker
-    const loggedAt = new Date(datetimeVal).toISOString();
+    // NEW LOG
     ({ error } = await sb.from('nuggercises').insert({
       user_id: currentUser.id,
       logged_at: loggedAt,
@@ -1856,6 +1857,14 @@ async function submitLog() {
   editingLogId = null;
   const banner = document.getElementById('edit-mode-banner');
   if (banner) banner.remove();
+
+  // If the log was moved to a different day, jump the dashboard to that day
+  if (datetimeVal) {
+    const newDate = new Date(datetimeVal);
+    if (newDate.toDateString() !== activeDate.toDateString()) {
+      activeDate = newDate;
+    }
+  }
 
   await refreshDashboard();
   const { phrase, tier } = pickPhrase();
