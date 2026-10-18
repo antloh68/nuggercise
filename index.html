@@ -1576,9 +1576,11 @@ function buildDayLog(logs) {
     const feel = document.createElement('div');
     feel.className = 'ng-log-feel';
     feel.textContent = FEELINGS[l.feeling_rating] || '';
-    // Only show edit/delete for entries within last 24 hours
-    const entryAge = Date.now() - new Date(l.logged_at).getTime();
-    const isEditable = entryAge <= 24 * 60 * 60 * 1000;
+    // Show edit button for today and yesterday (calendar days, not rolling hours)
+    const entryDate = new Date(l.logged_at);
+    const todayStr = new Date().toDateString();
+    const yesterdayStr = new Date(Date.now() - 86400000).toDateString();
+    const isEditable = entryDate.toDateString() === todayStr || entryDate.toDateString() === yesterdayStr;
     const btnWrap = document.createElement('div');
     btnWrap.style.cssText = 'display:flex;align-items:center;gap:2px;flex-shrink:0;';
     if (isEditable) {
@@ -1632,8 +1634,10 @@ async function openHistory(dayDate) {
       const badge = document.createElement('div'); badge.className = 'history-badge'; badge.textContent = l.metric_value + (l.metric_type === 'reps' ? ' Reps' : ' Min');
       const desc = document.createElement('div'); desc.className = 'history-desc'; desc.textContent = l.description || '—';
       const feel = document.createElement('div'); feel.className = 'history-feel'; feel.textContent = FEELINGS[l.feeling_rating] || '';
-      const entryAge = Date.now() - new Date(l.logged_at).getTime();
-      const isEditable = entryAge <= 24 * 60 * 60 * 1000;
+      const entryDate = new Date(l.logged_at);
+      const todayStr = new Date().toDateString();
+      const yesterdayStr = new Date(Date.now() - 86400000).toDateString();
+      const isEditable = entryDate.toDateString() === todayStr || entryDate.toDateString() === yesterdayStr;
       const btnWrap = document.createElement('div');
       btnWrap.style.cssText = 'display:flex;align-items:center;gap:2px;flex-shrink:0;';
       if (isEditable) {
@@ -1702,7 +1706,10 @@ function initLogForm() {
   const now = new Date();
   now.setSeconds(0, 0);
   const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
-  const minDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  // Allow logging from start of yesterday (calendar day, not rolling 24hrs)
+  const minDate = new Date(now);
+  minDate.setDate(minDate.getDate() - 1);
+  minDate.setHours(0, 0, 0, 0);
   const minLocal = new Date(minDate.getTime() - minDate.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
   const dtInput = document.getElementById('log-datetime');
   dtInput.max = local;
@@ -1789,17 +1796,19 @@ async function submitLog() {
     hasError = true;
   }
 
-  // Validate datetime — applies to BOTH new logs and edits
-  if (datetimeVal) {
+  // Validate datetime — skip in edit mode since logged_at is never changed on update
+  if (!editingLogId && datetimeVal) {
     const chosenDate = new Date(datetimeVal);
     const now = new Date();
-    const timeDiff = now - chosenDate;
-    if (timeDiff < 0) {
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+    yesterday.setHours(0, 0, 0, 0);
+    if (chosenDate > now) {
       errValueEl.textContent = 'Date cannot be in the future.';
       errValueEl.classList.add('show');
       hasError = true;
-    } else if (timeDiff > 24 * 60 * 60 * 1000) {
-      errValueEl.textContent = 'Date must be within the last 24 hours.';
+    } else if (chosenDate < yesterday) {
+      errValueEl.textContent = 'Date must be today or yesterday.';
       errValueEl.classList.add('show');
       hasError = true;
     }
@@ -1817,15 +1826,13 @@ async function submitLog() {
   btn.disabled = true;
   btn.textContent = editingLogId ? 'Updating...' : 'Logging...';
 
-  const loggedAt = new Date(datetimeVal).toISOString();
   let error;
 
   if (editingLogId) {
-    // ── EDIT MODE — now also updates logged_at ──
+    // EDIT MODE — update only editable fields, keep logged_at unchanged
     ({ error } = await sb
       .from('nuggercises')
       .update({
-        logged_at: loggedAt,          // <-- ADDED: apply the new timestamp
         metric_type: selectedType,
         metric_value: val,
         description: desc.slice(0, 250) || null,
@@ -1834,7 +1841,8 @@ async function submitLog() {
       .eq('id', editingLogId)
       .eq('user_id', currentUser.id));
   } else {
-    // NEW LOG
+    // NEW LOG — insert with logged_at from datetime picker
+    const loggedAt = new Date(datetimeVal).toISOString();
     ({ error } = await sb.from('nuggercises').insert({
       user_id: currentUser.id,
       logged_at: loggedAt,
@@ -1857,14 +1865,6 @@ async function submitLog() {
   editingLogId = null;
   const banner = document.getElementById('edit-mode-banner');
   if (banner) banner.remove();
-
-  // If the log was moved to a different day, jump the dashboard to that day
-  if (datetimeVal) {
-    const newDate = new Date(datetimeVal);
-    if (newDate.toDateString() !== activeDate.toDateString()) {
-      activeDate = newDate;
-    }
-  }
 
   await refreshDashboard();
   const { phrase, tier } = pickPhrase();
