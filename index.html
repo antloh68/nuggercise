@@ -1862,9 +1862,18 @@ async function submitLog() {
   }
 
   // Reset edit state
+  const wasEditing = !!editingLogId;
+  const editedDate = wasEditing ? new Date(datetimeVal) : null;
   editingLogId = null;
   const banner = document.getElementById('edit-mode-banner');
   if (banner) banner.remove();
+
+  // If editing a past entry, set activeDate to that entry's date
+  // so refreshDashboard fetches the correct day's logs
+  if (wasEditing && editedDate) {
+    activeDate = new Date(editedDate);
+    activeDate.setHours(12, 0, 0, 0); // Noon to avoid timezone boundary issues
+  }
 
   await refreshDashboard();
   const { phrase, tier } = pickPhrase();
