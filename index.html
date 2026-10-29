@@ -1796,8 +1796,8 @@ async function submitLog() {
     hasError = true;
   }
 
-  // Validate datetime — skip in edit mode since logged_at is never changed on update
-  if (!editingLogId && datetimeVal) {
+  // Validate datetime — applies to both new logs and edits since logged_at is always saved
+  if (datetimeVal) {
     const chosenDate = new Date(datetimeVal);
     const now = new Date();
     const yesterday = new Date(now);
@@ -1826,13 +1826,16 @@ async function submitLog() {
   btn.disabled = true;
   btn.textContent = editingLogId ? 'Updating...' : 'Logging...';
 
+  // Compute timestamp once — used for both insert and update
+  const loggedAt = new Date(datetimeVal).toISOString();
   let error;
 
   if (editingLogId) {
-    // EDIT MODE — update only editable fields, keep logged_at unchanged
+    // EDIT MODE — update all fields including logged_at (user may correct the time)
     ({ error } = await sb
       .from('nuggercises')
       .update({
+        logged_at: loggedAt,
         metric_type: selectedType,
         metric_value: val,
         description: desc.slice(0, 250) || null,
@@ -1842,7 +1845,6 @@ async function submitLog() {
       .eq('user_id', currentUser.id));
   } else {
     // NEW LOG — insert with logged_at from datetime picker
-    const loggedAt = new Date(datetimeVal).toISOString();
     ({ error } = await sb.from('nuggercises').insert({
       user_id: currentUser.id,
       logged_at: loggedAt,
