@@ -45,7 +45,9 @@ Whether it's 20 squats, a 1-minute plank, or desk stretches, Nuggercise helps yo
 - **Day Navigation** — `←` `→` arrows to browse any past day's logs on the dashboard
 - **Instant Nuggercise** — One-tap horizontal shortcut row on the dashboard for silent background logging without leaving the screen
 - **Quick Nugget Menu** — Customisable one-tap shortcuts in the log form (4 exercises, editable in Settings)
-- **Delete Entry** — Remove any log entry with a 3-second undo toast for accidental taps
+- **Back-Dated Logging** — The log form's date picker allows entries for today or yesterday (calendar days, resetting at midnight on the user's device) rather than a rolling 24-hour window
+- **Edit Entry (✏️)** — Pencil icon beside each entry from today or yesterday (dashboard list and history modal). Opens the log form pre-filled; every field including date/time can be corrected, with the same date validation as new entries
+- **Delete Entry (🗑)** — Remove any log entry with a 3-second undo toast for accidental taps
 
 ### Behavioral Psychology Layer
 - **Loss Aversion Streak Message** — After 3 PM SGT, if the user hasn't logged, the streak counter switches to a loss-framed warning message (Prospect Theory)
@@ -54,7 +56,7 @@ Whether it's 20 squats, a 1-minute plank, or desk stretches, Nuggercise helps yo
 - **Multi-Log Bubble Ring** — Days with 2+ logs show an orange ring on the week grid (Goal-Gradient Effect)
 
 ### Reflection
-- **Daily Reflection** — 🤔 icon in the header opens a reflection modal; one entry per day, editable today, read-only for past days with `←` `→` day navigation; 500 character limit
+- **Daily Reflection** — 🤔 icon in the header opens a reflection modal; one entry per day, editable for today and yesterday, read-only for older days, with `←` `→` day navigation; 500 character limit with live counter
 
 ### User Experience
 - **Reward Screens** — Tiered congratulatory phrases (150 total: 95 common, 40 energetic, 15 legendary) with Web Audio synthesised sound effects per tier and gold dark overlay for legendary
@@ -70,8 +72,8 @@ Whether it's 20 squats, a 1-minute plank, or desk stretches, Nuggercise helps yo
 - **Account Deletion** — Email confirmation gate + complete data erasure via Edge Function
 
 ### Automated Email Notifications
-- **Daily Nudges** — 4:00 PM SGT — sent only to users inactive for 24+ hours; includes habit anchor reminder
-- **Weekly Summaries** — 12:00 AM SGT Sunday — personalised stats (nuggets, reps, minutes, active days, avg feeling); sent only to users with at least one log that week
+- **Daily Nudges** — 8:00 AM and 8:00 PM SGT — sent only to users inactive for 24+ hours; includes habit anchor reminder
+- **Weekly Summaries** — 11:59 PM SGT Saturday — personalised stats (nuggets, reps, minutes, active days, avg feeling); sent only to users with at least one log that week
 
 ---
 
@@ -167,7 +169,7 @@ index.html (single file SPA)
 |--------|------|-------------|
 | `id` | UUID | PRIMARY KEY, DEFAULT gen_random_uuid() |
 | `user_id` | UUID | FK to profiles.id (cascade delete) |
-| `logged_at` | TIMESTAMPTZ | Must be within last 48 hours; DEFAULT now() |
+| `logged_at` | TIMESTAMPTZ | NOT NULL; DEFAULT now(). The today/yesterday window is enforced in the app, not by a database constraint (see note below) |
 | `metric_type` | TEXT | 'reps' OR 'minutes' |
 | `metric_value` | INTEGER | 1–10,000 |
 | `description` | TEXT | Nullable, max 250 chars |
@@ -212,6 +214,23 @@ CREATE INDEX idx_reflections_user_date ON reflections (user_id, reflected_at DES
 ### Row Level Security (RLS)
 All tables have RLS enabled. Every policy uses `auth.uid()` — users can only read and write their own data. `app_congratulations` and `email_nudges` are read-only for authenticated users.
 
+The `nuggercises` policy defines both clauses explicitly:
+```sql
+using (auth.uid() = user_id)
+with check (auth.uid() = user_id)
+```
+
+### Why there is no database time-window constraint on `logged_at`
+
+An earlier version enforced "no older than N hours" with a `CHECK` constraint on `nuggercises.logged_at`. A `CHECK` constraint is re-evaluated against `now()` on **every UPDATE**, not just on insert. Once an entry aged past the window, even a harmless edit (for example, correcting its description) was rejected by the database.
+
+The constraint was therefore removed. The today/yesterday rule is enforced in the app instead:
+- the datetime picker's `min` is set to the start of yesterday
+- `submitLog()` validates the chosen time on both inserts and edits, and rejects future times and times before yesterday
+- the ✏️ edit button is only shown for entries from today or yesterday
+
+Row Level Security still guarantees that users can only modify their own rows. Note that this means the date window is a UI-level rule, not a database guarantee: a user calling the API directly could write an older `logged_at` to their own rows. This was an accepted trade-off for a personal habit tracker.
+
 ---
 
 ## 🔧 Backend Services
@@ -223,8 +242,8 @@ All tables have RLS enabled. Every policy uses `auth.uid()` — users can only r
 **Scheduled via pg_cron:**
 | Job | Schedule | SGT Time | Behaviour |
 |-----|----------|----------|-----------|
-| `send-daily-nudges` | `0 8 * * *` | 4:00 PM daily | Users inactive 24+ hours |
-| `send-weekly-summary` | `59 15 * * 6` | 12:00 AM Sunday | Users with ≥1 log this week |
+| `send-daily-nudges` | `0 0,12 * * *` | 8:00 AM and 8:00 PM daily | Users inactive 24+ hours |
+| `send-weekly-summary` | `59 15 * * 6` | 11:59 PM Saturday | Users with ≥1 log this week |
 
 **Daily Mode:**
 - Fetches all confirmed users
@@ -280,7 +299,7 @@ pg_cron → POST { "token": "SECRET", "type": "daily" }
 - All user-supplied text rendered via `.textContent` — never `.innerHTML` — preventing XSS
 - Description fields capped at 250 chars, reflection at 500 chars at both DB and UI level
 - Numeric inputs stripped of non-numeric characters client-side before submission
-- Date inputs validated client-side before hitting Supabase (future dates blocked, 48h limit enforced)
+- Date inputs validated client-side before hitting Supabase, for both new entries and edits (future dates blocked; only today and yesterday allowed)
 
 ---
 
@@ -303,6 +322,17 @@ Run in Supabase SQL Editor in this order:
 3. `migration_quick_nuggets.sql` — adds quick_nuggets column to profiles
 4. `migration_logged_at_default.sql` — adds server-side default for logged_at
 5. `migration_profile_trigger.sql` — auto-creates profile on signup
+6. Post-schema fixes (required if your base schema still has the original definitions):
+   ```sql
+   -- Remove the time-window constraint; the app enforces today/yesterday instead
+   alter table public.nuggercises drop constraint if exists logged_at_past_limit;
+
+   -- Make the RLS policy explicit for writes as well as reads
+   alter policy "Enforce absolute user boundaries for all operations"
+     on public.nuggercises
+     using (auth.uid() = user_id)
+     with check (auth.uid() = user_id);
+   ```
 
 ### Step 3: Configure Supabase Auth
 1. **Authentication → URL Configuration:**
@@ -338,7 +368,31 @@ GMAIL_APP_PASSWORD → 16-character Gmail App Password
 ```
 
 ### Step 7: Set Up pg_cron Jobs
-Run `phase5-cron-jobs.sql` in the SQL Editor (replace `YOUR_FUNCTION_SECRET_HERE` with your actual secret).
+Enable the `pg_cron` and `pg_net` extensions, then schedule both jobs in the SQL Editor. The token travels in the request **body** and must exactly match the `FUNCTION_SECRET` secret. Times are UTC (SGT = UTC+8):
+
+```sql
+-- Daily nudge: 00:00 and 12:00 UTC = 8:00 AM and 8:00 PM SGT
+select cron.schedule('send-daily-nudges', '0 0,12 * * *', $$
+  select net.http_post(
+    url := 'https://YOUR-PROJECT.supabase.co/functions/v1/send-nudge',
+    headers := '{"Content-Type": "application/json"}'::jsonb,
+    body := jsonb_build_object('token', 'YOUR_FUNCTION_SECRET', 'type', 'daily'),
+    timeout_milliseconds := 5000
+  );
+$$);
+
+-- Weekly summary: 15:59 UTC Saturday = 11:59 PM SGT Saturday
+select cron.schedule('send-weekly-summary', '59 15 * * 6', $$
+  select net.http_post(
+    url := 'https://YOUR-PROJECT.supabase.co/functions/v1/send-nudge',
+    headers := '{"Content-Type": "application/json"}'::jsonb,
+    body := jsonb_build_object('token', 'YOUR_FUNCTION_SECRET', 'type', 'weekly'),
+    timeout_milliseconds := 5000
+  );
+$$);
+```
+
+Verify with `select jobname, schedule, active from cron.job;`
 
 ### Step 8: Update Frontend Credentials
 In `index.html`, update:
@@ -421,10 +475,10 @@ const APP_URL = 'https://your-username.github.io/nuggercise';
 | `index.html` | Complete single-file frontend application |
 | `sw.js` | Service Worker for PWA caching |
 | `phase2_congratulations.sql` | Seed data for reward phrases |
-| `phase5-cron-jobs.sql` | pg_cron job definitions |
+| `phase5-cron-jobs.sql` | **Obsolete** — targets an abandoned `send-email` function. Use the Step 7 SQL above instead |
 | `migration_reflections.sql` | Creates reflections table + RLS |
 | `migration_quick_nuggets.sql` | Adds quick_nuggets to profiles |
-| `migration_logged_at_default.sql` | Server-side timestamp default |
+| `migration_logged_at_default.sql` | Server-side timestamp default (the time-window constraint it complemented has since been removed — see Step 2, item 6) |
 | `migration_profile_trigger.sql` | Auto-profile creation trigger |
 | `behavioral-ux-change-tasks.md` | BX feature backlog documentation |
 
