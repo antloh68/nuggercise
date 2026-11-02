@@ -537,15 +537,17 @@
         <div class="ng-success-msg" id="nuggets-success">✓ Quick Nuggets saved!</div>
         <button class="ng-settings-save" onclick="saveNuggets()">Save Quick Nuggets</button>
       </div>
-      <div class="ng-settings-section" style="margin-top:8px">
-        <div class="ng-card-label">Your Data</div>
-        <button class="ng-export-btn" onclick="exportCSV()">⬇ Export Logs as CSV</button>
-      </div>
-      <div class="ng-settings-section" style="margin-top:8px">
-        <button class="ng-logout-btn" onclick="handleLogout()">Log Out</button>
-      </div>
-      <div class="ng-settings-section" style="margin-top:8px">
-        <div class="ng-card-label" style="color:#B45309;">Account Management</div>
+    </div>
+  </div>
+
+  <div id="screen-account" class="screen">
+    <div class="ng-header">
+      <button class="ng-back-btn" onclick="showDashboard()">← Back</button>
+      <span style="font-size:14px;font-weight:600;color:var(--ng-text)">Account</span>
+    </div>
+    <div class="ng-body">
+      <div class="ng-settings-section">
+        <div class="ng-card-label" style="color:#B45309;">Sign-in Details</div>
         <div class="ng-warning-box">
           <div class="ng-warning-title">Change Email Address</div>
           <div class="ng-warning-desc">Your current email: <strong id="current-email-display"></strong></div>
@@ -556,6 +558,29 @@
           <div class="auth-error" id="email-change-error" style="margin-bottom:4px;"></div>
           <button class="ng-warning-save" onclick="changeEmail()">Update Email Address</button>
         </div>
+        <div class="ng-warning-box" style="margin-top:10px;">
+          <div class="ng-warning-title">Change Password</div>
+          <div class="ng-warning-desc">Enter your current password to confirm it is you.</div>
+          <div class="ng-warning-label">Current Password</div>
+          <input class="ng-input" type="password" id="pw-current" placeholder="Your current password" autocomplete="current-password" style="border-color:#F59E0B;" />
+          <div class="ng-warning-label">New Password</div>
+          <input class="ng-input" type="password" id="pw-new" placeholder="At least 6 characters" autocomplete="new-password" style="border-color:#F59E0B;" />
+          <div class="ng-warning-label">Repeat New Password</div>
+          <input class="ng-input" type="password" id="pw-confirm" placeholder="Repeat new password" autocomplete="new-password" style="border-color:#F59E0B;" />
+          <div class="ng-pw-toggle-row" style="justify-content:flex-start;margin-top:0;">
+            <button class="ng-pw-toggle-link" type="button" id="pw-change-toggle-btn" onclick="toggleAccountPasswords()">👁 Show passwords</button>
+          </div>
+          <div class="ng-success-msg" id="pw-change-success">✓ Password updated!</div>
+          <div class="auth-error" id="pw-change-error" style="margin-bottom:4px;"></div>
+          <button class="ng-warning-save" id="pw-change-btn" onclick="changePassword()">Update Password</button>
+        </div>
+      </div>
+      <div class="ng-settings-section" style="margin-top:8px">
+        <div class="ng-card-label">Your Data</div>
+        <button class="ng-export-btn" onclick="exportCSV()">⬇ Export Logs as CSV</button>
+      </div>
+      <div class="ng-settings-section" style="margin-top:8px">
+        <button class="ng-logout-btn" onclick="handleLogout()">Log Out</button>
       </div>
       <div class="ng-settings-section" style="margin-top:8px">
         <div class="ng-card-label" style="color:#DC2626;">Danger Zone</div>
@@ -606,6 +631,10 @@
     <button class="menu-item" onclick="menuOpenSettings()">
       <span class="menu-item-emoji">⚙️</span>
       <span>Settings</span>
+    </button>
+    <button class="menu-item" onclick="menuOpenAccount()">
+      <span class="menu-item-emoji">👤</span>
+      <span>Account</span>
     </button>
   </nav>
 
@@ -1063,6 +1092,81 @@ async function changeEmail() {
     successEl.classList.add('show');
     document.getElementById('settings-new-email').value = '';
     setTimeout(() => successEl.classList.remove('show'), 6000);
+  }
+}
+
+// ─────────────────────────────────────────
+// ACCOUNT SCREEN
+// ─────────────────────────────────────────
+const PW_FIELDS = ['pw-current', 'pw-new', 'pw-confirm'];
+
+// Runs each time the Account screen opens, so nothing sensitive lingers
+// (typed passwords, an open delete-confirmation panel, old messages).
+function resetAccountScreen() {
+  closeDeleteConfirm();
+  PW_FIELDS.forEach(id => { const el = document.getElementById(id); el.value = ''; el.type = 'password'; });
+  document.getElementById('pw-change-toggle-btn').textContent = '👁 Show passwords';
+  ['pw-change-success', 'email-change-success'].forEach(id => document.getElementById(id).classList.remove('show'));
+  ['pw-change-error', 'email-change-error'].forEach(id => {
+    const el = document.getElementById(id); el.classList.remove('show'); el.textContent = '';
+  });
+  document.getElementById('settings-new-email').value = '';
+  const btn = document.getElementById('pw-change-btn');
+  btn.disabled = false; btn.textContent = 'Update Password';
+  if (currentUser) document.getElementById('current-email-display').textContent = currentUser.email || '';
+}
+
+// One toggle shows/hides all three password fields together
+function toggleAccountPasswords() {
+  const els = PW_FIELDS.map(id => document.getElementById(id));
+  const show = els[0].type === 'password';
+  els.forEach(el => { el.type = show ? 'text' : 'password'; });
+  document.getElementById('pw-change-toggle-btn').textContent = show ? '🙈 Hide passwords' : '👁 Show passwords';
+}
+
+let passwordChangeBusy = false;
+async function changePassword() {
+  if (passwordChangeBusy) return;
+  // Passwords are deliberately NOT trimmed — spaces can be part of a password
+  const current = document.getElementById('pw-current').value;
+  const next = document.getElementById('pw-new').value;
+  const confirm = document.getElementById('pw-confirm').value;
+  const errEl = document.getElementById('pw-change-error');
+  const successEl = document.getElementById('pw-change-success');
+  const btn = document.getElementById('pw-change-btn');
+  errEl.classList.remove('show'); errEl.textContent = '';
+  successEl.classList.remove('show');
+  const fail = msg => { errEl.textContent = msg; errEl.classList.add('show'); };
+
+  if (!current) return fail('Please enter your current password.');
+  if (next.length < 6) return fail('New password must be at least 6 characters.');
+  if (next !== confirm) return fail('New passwords do not match. Please try again.');
+  if (next === current) return fail('New password must be different from your current password.');
+  if (!currentUser || !currentUser.email) return fail('Could not verify your account. Please log in again.');
+
+  passwordChangeBusy = true;
+  btn.disabled = true; btn.textContent = 'Updating...';
+  try {
+    // 1) Prove it is the account owner: verify the CURRENT password.
+    //    (This also gives Supabase the "recent sign-in" it can require for password changes.)
+    const { error: verifyError } = await sb.auth.signInWithPassword({ email: currentUser.email, password: current });
+    if (verifyError) {
+      return fail(/invalid login|invalid credentials/i.test(verifyError.message)
+        ? 'Current password is incorrect.' : verifyError.message);
+    }
+    // 2) Set the new password
+    const { error: updateError } = await sb.auth.updateUser({ password: next });
+    if (updateError) return fail(updateError.message);
+
+    PW_FIELDS.forEach(id => { const el = document.getElementById(id); el.value = ''; el.type = 'password'; });
+    document.getElementById('pw-change-toggle-btn').textContent = '👁 Show passwords';
+    successEl.classList.add('show');
+    setTimeout(() => successEl.classList.remove('show'), 4000);
+  } catch (e) {
+    fail('Something went wrong. Please try again.');
+  } finally {
+    passwordChangeBusy = false;
+    btn.disabled = false; btn.textContent = 'Update Password';
   }
 }
 
@@ -2247,6 +2351,7 @@ function showScreen(id) {
 
   if (id === 'screen-log') initLogForm();
   if (id === 'screen-settings') renderNuggetEditor();
+  if (id === 'screen-account') resetAccountScreen();
   // NOTE: activeDate is no longer reset here — showDashboard() owns that, so the
   // date being viewed always matches what is rendered.
   if (id !== 'screen-dashboard') {
@@ -2383,7 +2488,7 @@ function renderReflectionCard(date, content, editable, loadFailed) {
   document.getElementById('reflect-prompt').textContent =
     loadFailed ? 'Could not load this reflection.'
     : editable ? (isToday ? 'How did today feel? What are you proud of?'
-                          : 'How did yesterday feel? What are you proud of?')
+                          : 'How did yesterday feel? What were you proud of?')
                : 'Looking back on this day.';
 
   input.value = content;
@@ -2548,6 +2653,7 @@ function closeMenu() {
 
 function menuOpenAbout() { closeMenu(); openAbout(); }
 function menuOpenSettings() { closeMenu(); showScreen('screen-settings'); }
+function menuOpenAccount() { closeMenu(); showScreen('screen-account'); }
 
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenu(); });
 
