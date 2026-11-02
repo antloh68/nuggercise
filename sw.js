@@ -4,7 +4,7 @@
 // Caches the app shell and Supabase SDK for instant repeat loads
 // ============================================================
 
-const CACHE_NAME = 'nuggercise-v1';
+const CACHE_NAME = 'nuggercise-v2'; // bumped: old caches are purged on activate
 const ASSETS_TO_CACHE = [
   '/nuggercise/',
   '/nuggercise/index.html',
@@ -40,6 +40,27 @@ self.addEventListener('fetch', event => {
   // Never cache Supabase API requests — always fresh from network
   if (url.hostname.includes('supabase.co')) {
     return; // Let it pass through to network without touching cache
+  }
+
+  // NETWORK-FIRST for the app page itself, so a new release is picked up on the
+  // next load instead of being hidden behind a stale cached copy. The cached copy
+  // is only a fallback for when the network is unavailable.
+  const isAppPage = event.request.mode === 'navigate' ||
+    url.pathname === '/nuggercise/' ||
+    url.pathname === '/nuggercise/index.html';
+  if (isAppPage) {
+    event.respondWith(
+      fetch(event.request).then(response => {
+        if (response.status === 200) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put('/nuggercise/index.html', clone));
+        }
+        return response;
+      }).catch(() =>
+        caches.match(event.request).then(c => c || caches.match('/nuggercise/index.html'))
+      )
+    );
+    return;
   }
 
   // Cache-first for app shell and CDN assets

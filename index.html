@@ -81,37 +81,31 @@
     /* ── ANCHOR SCROLL (single line marquee) ── */
     .ng-welcome-wrap { overflow: hidden; width: 100%; position: relative; }
     .ng-welcome-name { font-size: 18px; font-weight: 600; color: var(--ng-text); transition: opacity 0.4s ease; white-space: nowrap; display: inline-block; padding-right: 32px; }
-    /* ── REFLECTION MODAL ── */
-    .reflect-sheet { background: var(--ng-surface); border-radius: var(--ng-radius); width: 100%; max-width: 400px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.25); max-height: 85vh; }
-    .reflect-header { display: flex; align-items: center; gap: 6px; padding: 14px 16px; border-bottom: 1px solid var(--ng-border); }
-    .reflect-nav-btn { background: none; border: 1.5px solid var(--ng-border); border-radius: 8px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; font-size: 15px; cursor: pointer; color: var(--ng-text); flex-shrink: 0; transition: background 0.12s; }
-    .reflect-nav-btn:active { background: var(--ng-bg); }
-    .reflect-nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
-    .reflect-date-label { flex: 1; text-align: center; font-size: 14px; font-weight: 700; color: var(--ng-text); }
-    .reflect-close-x { background: none; border: none; cursor: pointer; color: var(--ng-muted); font-size: 16px; padding: 4px 8px; border-radius: 6px; margin-left: 4px; }
-    .reflect-close-x:active { background: var(--ng-bg); }
-    .reflect-body { padding: 18px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; }
-    .reflect-prompt { font-size: 13px; color: var(--ng-muted); line-height: 1.5; }
-    .reflect-input { width: 100%; min-height: 140px; padding: 12px; border: 1.5px solid var(--ng-border); border-radius: var(--ng-radius-sm); font-size: 15px; color: var(--ng-text); background: var(--ng-bg); resize: none; font-family: inherit; line-height: 1.6; outline: none; transition: border-color 0.15s; }
+    /* ── REFLECTION CARD (inline on dashboard) ── */
+    .reflect-prompt { font-size: 13px; color: var(--ng-muted); line-height: 1.5; margin-bottom: 8px; }
+    .reflect-input { width: 100%; min-height: 120px; padding: 12px; border: 1.5px solid var(--ng-border); border-radius: var(--ng-radius-sm); font-size: 16px; color: var(--ng-text); background: var(--ng-bg); resize: none; font-family: inherit; line-height: 1.6; outline: none; transition: border-color 0.15s; display: block; }
     .reflect-input:focus { border-color: var(--ng-orange); }
     .reflect-input:read-only { background: var(--ng-surface); color: var(--ng-muted); border-color: var(--ng-border); cursor: default; }
-    .reflect-meta { display: flex; align-items: center; justify-content: space-between; }
+    .reflect-meta { display: flex; align-items: center; justify-content: space-between; margin-top: 6px; }
     .reflect-char-count { font-size: 12px; color: var(--ng-subtle); }
     .reflect-readonly-label { font-size: 12px; color: var(--ng-muted); font-style: italic; }
-    .reflect-error { font-size: 13px; color: #DC2626; padding: 2px 0; }
-    .reflect-footer { padding: 14px 18px; border-top: 1px solid var(--ng-border); }
+    .reflect-error { font-size: 13px; color: #DC2626; padding: 4px 0 0; }
+    .reflect-footer { margin-top: 10px; }
     .reflect-save-btn { width: 100%; padding: 13px; background: var(--ng-orange); color: #fff; border: none; border-radius: var(--ng-radius-sm); font-size: 15px; font-weight: 700; cursor: pointer; transition: background 0.15s; }
     .reflect-save-btn:active { background: var(--ng-orange-dark); }
     .reflect-save-btn:disabled { background: #ccc; cursor: not-allowed; }
-    #reflection-modal.show { display: flex; }
+    /* ── MENU DRAWER (slides in from the left) ── */
+    #menu-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 85; opacity: 0; visibility: hidden; transition: opacity 0.25s ease, visibility 0s linear 0.25s; }
+    #menu-overlay.show { opacity: 1; visibility: visible; transition: opacity 0.25s ease; }
+    .menu-drawer { position: fixed; top: 0; bottom: 0; left: 0; width: min(280px, 82vw); background: var(--ng-surface); z-index: 86; transform: translateX(-100%); visibility: hidden; transition: transform 0.28s ease, visibility 0s linear 0.28s; box-shadow: 4px 0 24px rgba(0,0,0,0.18); padding-top: env(safe-area-inset-top, 0px); display: flex; flex-direction: column; }
+    .menu-drawer.show { transform: translateX(0); visibility: visible; transition: transform 0.28s ease; }
+    .menu-drawer-title { font-size: 12px; font-weight: 700; color: var(--ng-subtle); text-transform: uppercase; letter-spacing: 0.1em; padding: 22px 22px 10px; }
+    .menu-item { display: flex; align-items: center; gap: 14px; width: 100%; padding: 16px 22px; background: none; border: none; border-top: 1px solid var(--ng-border); font-size: 16px; font-weight: 600; color: var(--ng-text); text-align: left; cursor: pointer; }
+    .menu-item:last-of-type { border-bottom: 1px solid var(--ng-border); }
+    .menu-item:active { background: var(--ng-bg); }
+    .menu-item svg { color: var(--ng-muted); flex-shrink: 0; }
+    .menu-item-emoji { font-size: 20px; width: 22px; text-align: center; line-height: 1; flex-shrink: 0; }
     .ng-anchor-pill { background: var(--ng-orange-light); border-radius: var(--ng-radius-sm); padding: 8px 12px; margin-top: 8px; font-size: 13px; color: var(--ng-orange-dark); font-style: italic; line-height: 1.5; }
-    /* ── INSTANT NUGGETS ROW (BX-4) ── */
-    .ng-instant-row { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
-    .ng-instant-row::-webkit-scrollbar { display: none; }
-    .ng-instant-btn { flex: 0 0 auto; background: var(--ng-bg); border: 1.5px solid var(--ng-border); border-radius: var(--ng-radius-sm); padding: 10px 14px; font-size: 13px; font-weight: 600; color: var(--ng-text); cursor: pointer; white-space: nowrap; transition: background 0.15s, transform 0.1s, border-color 0.15s; }
-    .ng-instant-btn:active { transform: scale(0.95); }
-    .ng-instant-btn.flash { background: var(--ng-green); border-color: var(--ng-green); color: #fff; }
-    .ng-instant-btn:disabled { opacity: 0.6; cursor: not-allowed; }
     /* ── TOAST NOTIFICATION ── */
     .ng-toast { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%) translateY(20px); background: #1A1A1A; color: #fff; padding: 10px 20px; border-radius: 24px; font-size: 13px; font-weight: 600; z-index: 70; opacity: 0; transition: opacity 0.25s, transform 0.25s; pointer-events: none; white-space: nowrap; }
     .ng-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
@@ -404,28 +398,20 @@
 
   <!-- DASHBOARD SCREEN -->
   <div id="screen-dashboard" class="screen">
-    <div class="ng-header">
+    <div class="ng-header" style="justify-content:flex-start;gap:10px;">
+      <button class="ng-icon-btn" id="menu-btn" onclick="openMenu()" aria-label="Open menu" aria-expanded="false" aria-controls="menu-drawer">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="3" y1="6" x2="21" y2="6"/>
+          <line x1="3" y1="12" x2="21" y2="12"/>
+          <line x1="3" y1="18" x2="21" y2="18"/>
+        </svg>
+      </button>
       <span class="ng-header-title">🔥 NUGGERCISE</span>
-      <div style="display:flex;align-items:center;gap:4px;">
-        <button class="ng-icon-btn" onclick="openReflection()" aria-label="Daily reflection" style="font-size:20px;">🤔</button>
-        <button class="ng-icon-btn" onclick="openAbout()" aria-label="About Nuggercise">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"/>
-            <line x1="12" y1="8" x2="12" y2="8.5" stroke-width="2.5"/>
-            <line x1="12" y1="11" x2="12" y2="16"/>
-          </svg>
-        </button>
-        <button class="ng-icon-btn" onclick="showScreen('screen-settings')" aria-label="Settings">⚙️</button>
-      </div>
     </div>
     <div class="ng-body">
       <div class="ng-card">
         <div class="ng-welcome-wrap"><div class="ng-welcome-name" id="dash-welcome">Welcome back! 👋</div></div>
         <div class="ng-anchor-pill" id="dash-anchor" style="display:none"></div>
-      </div>
-      <div class="ng-card" id="instant-nuggets-card">
-        <div class="ng-card-label">Instant Nuggercise</div>
-        <div class="ng-instant-row" id="instant-nuggets-row"></div>
       </div>
       <div class="ng-card">
         <div class="ng-card-label">This Week</div>
@@ -459,6 +445,19 @@
         <div class="ng-card-label" id="momentum-label">Today's Momentum</div>
         <div id="today-log"><div class="ng-log-empty">Nothing yet — tap + to log your first nugget!</div></div>
       </div>
+      <div class="ng-card" id="reflection-card">
+        <div class="ng-card-label" id="reflect-card-label">🤔 Daily Reflection</div>
+        <div class="reflect-prompt" id="reflect-prompt">How did today feel?</div>
+        <textarea class="reflect-input" id="reflect-input" maxlength="500" placeholder="Write your reflection here..." oninput="onReflectionInput()"></textarea>
+        <div class="reflect-meta">
+          <span class="reflect-char-count"><span id="reflect-char">0</span>/500</span>
+          <span class="reflect-readonly-label" id="reflect-readonly-label" style="display:none;">📖 Read only</span>
+        </div>
+        <div class="reflect-error" id="reflect-error" style="display:none;"></div>
+        <div class="reflect-footer" id="reflect-footer">
+          <button class="reflect-save-btn" id="reflect-save-btn" onclick="saveReflection()">Save Reflection</button>
+        </div>
+      </div>
     </div>
     <button class="ng-fab" onclick="showScreen('screen-log')" aria-label="Log exercise">+</button>
   </div>
@@ -466,7 +465,7 @@
   <!-- LOG SCREEN -->
   <div id="screen-log" class="screen">
     <div class="ng-header">
-      <button class="ng-back-btn" onclick="showScreen('screen-dashboard')">← Back</button>
+      <button class="ng-back-btn" onclick="showDashboard()">← Back</button>
       <span style="font-size:14px;font-weight:600;color:var(--ng-text)">Log Nuggercise</span>
     </div>
     <div class="ng-body">
@@ -513,7 +512,7 @@
   <!-- SETTINGS SCREEN -->
   <div id="screen-settings" class="screen">
     <div class="ng-header">
-      <button class="ng-back-btn" onclick="showScreen('screen-dashboard')">← Back</button>
+      <button class="ng-back-btn" onclick="showDashboard()">← Back</button>
       <span style="font-size:14px;font-weight:600;color:var(--ng-text)">Settings</span>
     </div>
     <div class="ng-body">
@@ -592,29 +591,23 @@
     </div>
   </div>
 
-  <!-- REFLECTION MODAL -->
-  <div id="reflection-modal" role="dialog" aria-modal="true" onclick="handleReflectionOverlayClick(event)" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:80; align-items:center; justify-content:center; padding:24px;">
-    <div class="reflect-sheet">
-      <div class="reflect-header">
-        <button class="reflect-nav-btn" id="reflect-prev" onclick="reflectionNavigate(-1)" aria-label="Previous day">←</button>
-        <div class="reflect-date-label" id="reflect-date-label">Today</div>
-        <button class="reflect-nav-btn" id="reflect-next" onclick="reflectionNavigate(1)" aria-label="Next day" disabled>→</button>
-        <button class="reflect-close-x" onclick="closeReflection()" aria-label="Close">✕</button>
-      </div>
-      <div class="reflect-body">
-        <div class="reflect-prompt">🤔 How did today feel? What are you proud of?</div>
-        <textarea class="reflect-input" id="reflect-input" maxlength="500" placeholder="Write your reflection here..." oninput="updateReflectCount()"></textarea>
-        <div class="reflect-meta">
-          <span class="reflect-char-count"><span id="reflect-char">0</span>/500</span>
-          <span class="reflect-readonly-label" id="reflect-readonly-label" style="display:none;">📖 Read only</span>
-        </div>
-        <div class="reflect-error" id="reflect-error" style="display:none;"></div>
-      </div>
-      <div class="reflect-footer" id="reflect-footer">
-        <button class="reflect-save-btn" id="reflect-save-btn" onclick="saveReflection()">Save Reflection</button>
-      </div>
-    </div>
-  </div>
+  <!-- MENU DRAWER (slides in from the left) -->
+  <div id="menu-overlay" onclick="closeMenu()"></div>
+  <nav id="menu-drawer" class="menu-drawer" aria-label="Main menu" aria-hidden="true">
+    <div class="menu-drawer-title">Menu</div>
+    <button class="menu-item" onclick="menuOpenAbout()">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/>
+        <line x1="12" y1="8" x2="12" y2="8.5" stroke-width="2.5"/>
+        <line x1="12" y1="11" x2="12" y2="16"/>
+      </svg>
+      <span>About</span>
+    </button>
+    <button class="menu-item" onclick="menuOpenSettings()">
+      <span class="menu-item-emoji">⚙️</span>
+      <span>Settings</span>
+    </button>
+  </nav>
 
   <!-- ABOUT MODAL -->
   <div id="about-modal" role="dialog" aria-modal="true" aria-label="About Nuggercise" onclick="handleAboutOverlayClick(event)" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:80; align-items:center; justify-content:center; padding:24px;">
@@ -752,7 +745,7 @@ async function loadApp() {
   if (appLoaded) return; // Halt duplicate execution on session restore
   appLoaded = true;
   await Promise.all([loadProfile(), loadPhrases(), loadNuggets()]);
-  await refreshDashboard();
+  await Promise.all([refreshDashboard(), loadReflectionForActiveDate()]);
   hideLoader();
   showScreen('screen-dashboard');
   maybeShowAbout(); // Auto-open for first-time users after dashboard is visible
@@ -1109,7 +1102,6 @@ async function loadNuggets() {
   }
   renderQuickGrid();
   renderNuggetEditor();
-  renderInstantNuggets();
 }
 
 async function saveNuggets() {
@@ -1129,7 +1121,6 @@ async function saveNuggets() {
   if (!error) {
     quickNuggets = updated;
     renderQuickGrid();
-    renderInstantNuggets();
     const msg = document.getElementById('nuggets-success');
     msg.classList.add('show');
     setTimeout(() => msg.classList.remove('show'), 2500);
@@ -1408,7 +1399,9 @@ function updateDateNav() {
   });
 }
 
-function navigateDay(delta) {
+async function navigateDay(delta) {
+  // Autosave any unsaved reflection for the day we are leaving
+  await flushReflection();
   const now = new Date();
   const newDate = new Date(activeDate);
   newDate.setDate(activeDate.getDate() + delta);
@@ -1416,13 +1409,31 @@ function navigateDay(delta) {
   if (newDate > now) return;
   activeDate = newDate;
   refreshDashboard();
+  loadReflectionForActiveDate();
 }
 
-function jumpToDate(date) {
+async function jumpToDate(date) {
+  await flushReflection();
   const now = new Date();
   if (date > now) return;
   activeDate = new Date(date);
   refreshDashboard();
+  loadReflectionForActiveDate();
+}
+
+// Single, consistent way to return to the dashboard.
+// Sets the day being viewed (today unless a date is given), shows the screen,
+// and re-renders BOTH the logs and the reflection so the screen can never
+// show a different day from the one activeDate points to.
+function showDashboard(targetDate) {
+  // Normalise to the start of the day: navigateDay() blocks dates later than "now",
+  // so a leftover time-of-day (e.g. an entry logged at 9:15) must not linger.
+  const d = targetDate ? new Date(targetDate) : new Date();
+  d.setHours(0, 0, 0, 0);
+  activeDate = d;
+  showScreen('screen-dashboard');
+  refreshDashboard();
+  loadReflectionForActiveDate();
 }
 
 function buildWeekGrid(logs) {
@@ -1865,75 +1876,25 @@ async function submitLog() {
 
   // Reset edit state
   const wasEditing = !!editingLogId;
-  const editedDate = wasEditing ? new Date(datetimeVal) : null;
+  const savedDate = new Date(datetimeVal); // the day the entry now belongs to
   editingLogId = null;
   const banner = document.getElementById('edit-mode-banner');
   if (banner) banner.remove();
-
-  // If editing a past entry, set activeDate to that entry's date
-  // so refreshDashboard fetches the correct day's logs
-  if (wasEditing && editedDate) {
-    activeDate = new Date(editedDate);
-    activeDate.setHours(12, 0, 0, 0); // Noon to avoid timezone boundary issues
-  }
-
-  await refreshDashboard();
-  const { phrase, tier } = pickPhrase();
-  showReward(phrase, tier, val, selectedType, desc);
   btn.disabled = false;
   btn.textContent = 'Log It! 🔥';
-}
 
-// ─────────────────────────────────────────
-// BX-4: INSTANT NUGGERCISE — SHARED SILENT BACKGROUND LOG
-// Submits without leaving dashboard, shows full reward screen
-// ─────────────────────────────────────────
-async function instantLog(type, value, description, triggerEl) {
-  if (triggerEl) triggerEl.disabled = true;
-
-  const { error } = await sb.from('nuggercises').insert({
-    user_id: currentUser.id,
-    // logged_at omitted — server clock used to avoid client clock drift
-    metric_type: type,
-    metric_value: value,
-    description: (description || '').slice(0, 250) || null,
-    feeling_rating: 3 // Neutral default — no emoji picker in this flow
-  });
-
-  if (error) {
-    showToast('⚠️ Could not log — try again');
-    if (triggerEl) triggerEl.disabled = false;
+  if (wasEditing) {
+    // Edits get NO reward/encouragement. Go straight to the dashboard on the
+    // edited entry's day so the change is visible immediately.
+    showToast('✓ Entry updated');
+    showDashboard(savedDate);
     return;
   }
 
-  // Brief flash on the button before reward screen takes over
-  if (triggerEl) {
-    triggerEl.classList.add('flash');
-    setTimeout(() => {
-      triggerEl.classList.remove('flash');
-      triggerEl.disabled = false;
-    }, 300);
-  }
-
-  if (navigator.vibrate) navigator.vibrate(50);
-
-  // Show full reward screen — identical experience to manual log form
-  await refreshDashboard();
+  // New log: show the reward. Its "Back to Dashboard" button calls showDashboard(),
+  // which refreshes the logs, streak and stats.
   const { phrase, tier } = pickPhrase();
-  showReward(phrase, tier, value, type, description || '');
-}
-
-function renderInstantNuggets() {
-  const row = document.getElementById('instant-nuggets-row');
-  if (!row) return;
-  row.innerHTML = '';
-  quickNuggets.forEach(n => {
-    const btn = document.createElement('button');
-    btn.className = 'ng-instant-btn';
-    btn.textContent = n.emoji + ' ' + n.label;
-    btn.onclick = () => instantLog(n.type, n.value, n.label, btn);
-    row.appendChild(btn);
-  });
+  showReward(phrase, tier, val, selectedType, desc);
 }
 
 // ─────────────────────────────────────────
@@ -2125,7 +2086,7 @@ function showReward(phrase, tier, val, type, desc) {
   backBtn.onclick = () => {
     reward.classList.remove('show');
     reward.classList.remove('legendary-mode');
-    showScreen('screen-dashboard');
+    showDashboard(); // today; re-renders logs, streak, stats and reflection
   };
 
   reward.appendChild(iconEl); reward.appendChild(tierBadge); reward.appendChild(phraseEl); reward.appendChild(detailEl); reward.appendChild(backBtn);
@@ -2286,9 +2247,12 @@ function showScreen(id) {
 
   if (id === 'screen-log') initLogForm();
   if (id === 'screen-settings') renderNuggetEditor();
-  if (id === 'screen-dashboard') {
-    activeDate = new Date();
-  } else {
+  // NOTE: activeDate is no longer reset here — showDashboard() owns that, so the
+  // date being viewed always matches what is rendered.
+  if (id !== 'screen-dashboard') {
+    // Leaving the dashboard: autosave any unsaved reflection (fire-and-forget;
+    // flushReflection guards against no user / nothing to save)
+    flushReflection();
     if (welcomeToggleInterval) {
       clearInterval(welcomeToggleInterval);
       clearTimeout(welcomeToggleInterval);
@@ -2360,120 +2324,167 @@ async function deleteAccount() {
 }
 
 // ─────────────────────────────────────────
-// REFLECTION MODAL
+// DAILY REFLECTION (inline card on the dashboard)
+// The card follows activeDate — the same day the day log shows. One per day.
+// Storage convention (unchanged from the old modal): a reflection for local
+// calendar day D is stored at 12:00 UTC on D and looked up by D's UTC window.
 // ─────────────────────────────────────────
-let reflectionDate = new Date(); // Currently viewed date in reflection modal
+let reflectionShownDate = null;   // local day currently shown in the card
+let reflectionExistingId = null;  // id of the saved row for that day (null = none yet)
+let reflectionEditable = false;   // today / yesterday only
+let reflectionDirty = false;      // textarea has edits that are not saved yet
+let reflectionLoadSeq = 0;        // ignores out-of-order async loads
+let reflectionSaving = null;      // in-flight save chain (serialises saves)
 
-function reflectionDateKey(date) {
-  // Returns YYYY-MM-DD string used as the date filter
-  return date.toISOString().split('T')[0];
+function reflectionDayWindowUTC(date) {
+  const y = date.getFullYear(), m = date.getMonth(), d = date.getDate();
+  return {
+    start: new Date(Date.UTC(y, m, d, 0, 0, 0, 0)),
+    end:   new Date(Date.UTC(y, m, d, 23, 59, 59, 999)),
+    noon:  new Date(Date.UTC(y, m, d, 12, 0, 0, 0))
+  };
 }
 
-function reflectionDateLabel(date) {
+function isReflectionEditable(date) {
+  const now = new Date();
+  const yesterday = new Date(now); yesterday.setDate(now.getDate() - 1);
+  return date.toDateString() === now.toDateString() ||
+         date.toDateString() === yesterday.toDateString();
+}
+
+function reflectionDayLabel(date) {
   const now = new Date();
   const yesterday = new Date(now); yesterday.setDate(now.getDate() - 1);
   if (date.toDateString() === now.toDateString()) return 'Today';
   if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
-  return date.toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' });
+  return date.toLocaleDateString('en-SG', { day: 'numeric', month: 'short' });
 }
 
-async function openReflection() {
-  reflectionDate = new Date(); // Always start on today
-  const modal = document.getElementById('reflection-modal');
-  modal.classList.add('show');
-  modal.style.display = 'flex';
-  await loadReflectionForDate();
+function updateReflectCount() {
+  document.getElementById('reflect-char').textContent =
+    document.getElementById('reflect-input').value.length;
 }
 
-function closeReflection() {
-  const modal = document.getElementById('reflection-modal');
-  modal.classList.remove('show');
-  modal.style.display = 'none';
+function onReflectionInput() {
+  updateReflectCount();
+  if (reflectionEditable) reflectionDirty = true;
 }
 
-function handleReflectionOverlayClick(e) {
-  if (e.target === document.getElementById('reflection-modal')) closeReflection();
-}
-
-function reflectionNavigate(delta) {
-  const now = new Date();
-  const newDate = new Date(reflectionDate);
-  newDate.setDate(reflectionDate.getDate() + delta);
-  if (newDate > now) return; // Block future
-  reflectionDate = newDate;
-  loadReflectionForDate();
-}
-
-async function loadReflectionForDate() {
-  const now = new Date();
-  const isToday = reflectionDate.toDateString() === now.toDateString();
-  const yesterday = new Date(now); yesterday.setDate(now.getDate() - 1);
-  const isYesterday = reflectionDate.toDateString() === yesterday.toDateString();
-  const isEditable = isToday || isYesterday;
-
-  // Update nav controls
-  document.getElementById('reflect-date-label').textContent = reflectionDateLabel(reflectionDate);
-  document.getElementById('reflect-next').disabled = isToday;
-
+function renderReflectionCard(date, content, editable, loadFailed) {
   const input = document.getElementById('reflect-input');
+  const footer = document.getElementById('reflect-footer');
   const saveBtn = document.getElementById('reflect-save-btn');
   const readonlyLabel = document.getElementById('reflect-readonly-label');
-  const footer = document.getElementById('reflect-footer');
   const errorEl = document.getElementById('reflect-error');
+  const isToday = date.toDateString() === new Date().toDateString();
+
+  document.getElementById('reflect-card-label').textContent =
+    '🤔 Daily Reflection · ' + reflectionDayLabel(date);
+  document.getElementById('reflect-prompt').textContent =
+    loadFailed ? 'Could not load this reflection.'
+    : editable ? (isToday ? 'How did today feel? What are you proud of?'
+                          : 'How did yesterday feel? What are you proud of?')
+               : 'Looking back on this day.';
+
+  input.value = content;
+  input.readOnly = !editable;
+  input.placeholder = editable ? 'Write your reflection here...'
+                               : (loadFailed ? '' : 'No reflection recorded for this day.');
+  updateReflectCount();
+
+  readonlyLabel.style.display = (!editable && !loadFailed) ? 'inline' : 'none';
+  footer.style.display = editable ? 'block' : 'none';
+  saveBtn.disabled = false;
+  saveBtn.style.background = '';
+  saveBtn.textContent = reflectionExistingId ? 'Update Reflection' : 'Save Reflection';
   errorEl.style.display = 'none';
+}
 
-  // Use UTC date boundaries
-  const dayStartUTC = new Date(Date.UTC(
-    reflectionDate.getFullYear(),
-    reflectionDate.getMonth(),
-    reflectionDate.getDate(),
-    0, 0, 0, 0
-  ));
-  const dayEndUTC = new Date(Date.UTC(
-    reflectionDate.getFullYear(),
-    reflectionDate.getMonth(),
-    reflectionDate.getDate(),
-    23, 59, 59, 999
-  ));
+async function loadReflectionForActiveDate() {
+  if (!currentUser) return;
+  const seq = ++reflectionLoadSeq;
+  const date = new Date(activeDate);
 
-  const { data } = await sb
+  // If a save is still in flight, let it finish so we read the saved version
+  if (reflectionSaving) { try { await reflectionSaving; } catch (e) {} }
+  if (seq !== reflectionLoadSeq) return;
+
+  const { start, end } = reflectionDayWindowUTC(date);
+  const { data, error } = await sb
     .from('reflections')
-    .select('id, content, reflected_at')
+    .select('id, content')
     .eq('user_id', currentUser.id)
-    .gte('reflected_at', dayStartUTC.toISOString())
-    .lte('reflected_at', dayEndUTC.toISOString())
+    .gte('reflected_at', start.toISOString())
+    .lte('reflected_at', end.toISOString())
     .order('reflected_at', { ascending: false })
     .limit(1)
     .maybeSingle();
 
-  input.value = data ? data.content : '';
-  updateReflectCount();
+  if (seq !== reflectionLoadSeq) return; // a newer load superseded this one
 
-  if (isEditable) {
-    input.removeAttribute('readonly');
-    input.style.cursor = 'text';
-    readonlyLabel.style.display = 'none';
-    footer.style.display = 'block';
-    saveBtn.disabled = false;
-    saveBtn.textContent = data ? 'Update Reflection' : 'Save Reflection';
-    saveBtn.dataset.existingId = data ? data.id : '';
-  } else {
-    input.setAttribute('readonly', true);
-    input.style.cursor = 'default';
-    readonlyLabel.style.display = 'inline';
-    footer.style.display = 'none';
-    if (!data) input.value = 'No reflection recorded for this day.';
+  reflectionShownDate = date;
+  reflectionDirty = false;
+
+  if (error) {
+    // Lock the card: if we guessed "no reflection yet" we could insert a duplicate
+    console.error('Reflection load failed:', error.message);
+    reflectionExistingId = null;
+    reflectionEditable = false;
+    renderReflectionCard(date, '', false, true);
+    return;
   }
+
+  reflectionExistingId = data ? data.id : null;
+  reflectionEditable = isReflectionEditable(date);
+  renderReflectionCard(date, data ? data.content : '', reflectionEditable, false);
 }
 
-function updateReflectCount() {
-  const val = document.getElementById('reflect-input').value;
-  document.getElementById('reflect-char').textContent = val.length;
+// Saves are chained so an autosave and a manual Save can never run at the same
+// time (which could insert the same day's reflection twice).
+function persistReflection(content) {
+  const run = async () => {
+    try {
+      const date = reflectionShownDate;
+      if (!date || !currentUser) return false;
+      const stamp = reflectionDayWindowUTC(date).noon.toISOString();
+      let error = null, newId = null;
+
+      if (reflectionExistingId) {
+        ({ error } = await sb.from('reflections')
+          .update({ content, reflected_at: stamp })
+          .eq('id', reflectionExistingId)
+          .eq('user_id', currentUser.id));
+      } else {
+        const res = await sb.from('reflections')
+          .insert({ user_id: currentUser.id, content, reflected_at: stamp })
+          .select('id')
+          .single();
+        error = res.error;
+        newId = res.data ? res.data.id : null;
+      }
+
+      if (error) { console.error('Reflection save failed:', error.message); return false; }
+      if (reflectionShownDate === date) {
+        if (newId) reflectionExistingId = newId;
+        // Only clear "dirty" if the text did not change again while saving
+        if (document.getElementById('reflect-input').value.trim() === content) reflectionDirty = false;
+      }
+      return true;
+    } catch (e) {
+      console.error('Reflection save error:', e);
+      return false;
+    }
+  };
+  const p = (reflectionSaving || Promise.resolve()).then(run, run);
+  reflectionSaving = p;
+  p.then(() => { if (reflectionSaving === p) reflectionSaving = null; });
+  return p;
 }
 
+// Explicit Save / Update button
 async function saveReflection() {
-  const input = document.getElementById('reflect-input');
-  const content = input.value.trim();
+  if (!reflectionEditable || !reflectionShownDate) return;
+  const content = document.getElementById('reflect-input').value.trim();
   const saveBtn = document.getElementById('reflect-save-btn');
   const errorEl = document.getElementById('reflect-error');
   errorEl.style.display = 'none';
@@ -2484,66 +2495,61 @@ async function saveReflection() {
     return;
   }
 
-  // Capture the date we're currently viewing (before async operations)
-  const currentReflectionDate = new Date(reflectionDate);
-
-  // ── FIX: Compute a fixed timestamp on that date (noon UTC) ──
-  // Using noon avoids boundary issues (00:00 UTC might shift for some timezones)
-  const fixedTimestamp = new Date(Date.UTC(
-    currentReflectionDate.getFullYear(),
-    currentReflectionDate.getMonth(),
-    currentReflectionDate.getDate(),
-    12, 0, 0, 0
-  )).toISOString();
-
   saveBtn.disabled = true;
   saveBtn.textContent = 'Saving...';
+  const ok = await persistReflection(content);
 
-  const existingId = saveBtn.dataset.existingId;
-  let error;
-
-  if (existingId) {
-    // Update existing reflection — overwrite the timestamp with our fixed date
-    // (This ensures it stays on the correct day even if the original timestamp drifted)
-    ({ error } = await sb
-      .from('reflections')
-      .update({
-        content,
-        reflected_at: fixedTimestamp   // <-- Use fixed date instead of preserving
-      })
-      .eq('id', existingId)
-      .eq('user_id', currentUser.id));
-  } else {
-    // Insert new reflection with the fixed timestamp for that day
-    ({ error } = await sb
-      .from('reflections')
-      .insert({
-        user_id: currentUser.id,
-        content,
-        reflected_at: fixedTimestamp   // <-- Use fixed date, not current time
-      }));
-  }
-
-  if (error) {
+  if (!ok) {
     errorEl.textContent = 'Could not save — please try again.';
     errorEl.style.display = 'block';
     saveBtn.disabled = false;
-    saveBtn.textContent = existingId ? 'Update Reflection' : 'Save Reflection';
+    saveBtn.textContent = reflectionExistingId ? 'Update Reflection' : 'Save Reflection';
     return;
   }
 
   saveBtn.textContent = '✓ Saved!';
   saveBtn.style.background = 'var(--ng-green)';
-
-  setTimeout(async () => {
+  setTimeout(() => {
+    // Label comes from current state, so it is correct even if the day changed meanwhile
     saveBtn.style.background = '';
-    saveBtn.textContent = 'Update Reflection';
     saveBtn.disabled = false;
-    // Ensure we reload the same date we saved on
-    reflectionDate = currentReflectionDate;
-    await loadReflectionForDate();
+    saveBtn.textContent = reflectionExistingId ? 'Update Reflection' : 'Save Reflection';
   }, 1500);
 }
+
+// Autosave: called before the day changes and when leaving the dashboard.
+// Nothing to do unless the text was edited on an editable day.
+async function flushReflection() {
+  if (!currentUser || !reflectionDirty || !reflectionEditable || !reflectionShownDate) return;
+  const content = document.getElementById('reflect-input').value.trim();
+  if (!content) return; // the database does not accept an empty reflection
+  const ok = await persistReflection(content);
+  showToast(ok ? '✓ Reflection saved' : '⚠️ Could not save reflection');
+}
+
+// ─────────────────────────────────────────
+// MENU DRAWER (opens from the left)
+// ─────────────────────────────────────────
+function openMenu() {
+  document.getElementById('menu-overlay').classList.add('show');
+  const drawer = document.getElementById('menu-drawer');
+  drawer.classList.add('show');
+  drawer.setAttribute('aria-hidden', 'false');
+  document.getElementById('menu-btn').setAttribute('aria-expanded', 'true');
+}
+
+function closeMenu() {
+  document.getElementById('menu-overlay').classList.remove('show');
+  const drawer = document.getElementById('menu-drawer');
+  drawer.classList.remove('show');
+  drawer.setAttribute('aria-hidden', 'true');
+  document.getElementById('menu-btn').setAttribute('aria-expanded', 'false');
+}
+
+function menuOpenAbout() { closeMenu(); openAbout(); }
+function menuOpenSettings() { closeMenu(); showScreen('screen-settings'); }
+
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenu(); });
 
 // ─────────────────────────────────────────
 // ABOUT MODAL
