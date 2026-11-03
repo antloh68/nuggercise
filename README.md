@@ -38,38 +38,46 @@ Whether it's 20 squats, a 1-minute plank, or desk stretches, Nuggercise helps yo
 
 ## ✨ Features
 
+### Navigation
+- **Menu Drawer (☰)** — The button at the top left of the dashboard slides a drawer in from the left with **About**, **Settings** and **Account**. Tap the dimmed area or press Esc to close it
+
 ### Core Functionality
 - **User Authentication** — Sign up, log in, password reset, and email verification via Supabase Auth
-- **Daily Exercise Logging** — Log reps or minutes with descriptions and mood ratings (1–5 emoji scale)
+- **Daily Exercise Logging** — Tap **+** to log reps or minutes with a description and a mood rating (1–5 emoji scale)
 - **Streak Tracking** — Visual week grid (Sun–Sat) showing consistency at a glance
-- **Day Navigation** — `←` `→` arrows to browse any past day's logs on the dashboard
-- **Instant Nuggercise** — One-tap horizontal shortcut row on the dashboard for silent background logging without leaving the screen
-- **Quick Nugget Menu** — Customisable one-tap shortcuts in the log form (4 exercises, editable in Settings)
+- **Day Navigation** — `←` `→` arrows and tappable week-grid bubbles switch the day being viewed. The day log **and** the reflection card both follow the selected day
+- **Quick Nugget Menu** — Customisable one-tap shortcuts inside the log form (4 exercises, editable in Settings)
 - **Back-Dated Logging** — The log form's date picker allows entries for today or yesterday (calendar days, resetting at midnight on the user's device) rather than a rolling 24-hour window
-- **Edit Entry (✏️)** — Pencil icon beside each entry from today or yesterday (dashboard list and history modal). Opens the log form pre-filled; every field including date/time can be corrected, with the same date validation as new entries
+- **Edit Entry (✏️)** — Pencil icon beside each entry from today or yesterday. Opens the log form pre-filled; every field including date/time can be corrected, with the same date validation as new entries. Saving an edit shows **no reward** and returns to the edited entry's day
 - **Delete Entry (🗑)** — Remove any log entry with a 3-second undo toast for accidental taps
 
 ### Behavioral Psychology Layer
 - **Loss Aversion Streak Message** — After 3 PM SGT, if the user hasn't logged, the streak counter switches to a loss-framed warning message (Prospect Theory)
-- **Habit Anchor** — User sets an Implementation Intention ("When I sit for 1 hr, I do 20 squats") displayed on the dashboard with a scrolling marquee animation
-- **Variable Reward System** — Every log triggers a random tiered reward (Common 75%, Energetic 20%, Legendary 5%) with matching audio via Web Audio API and confetti for legendary draws
+- **Habit Anchor** — User sets an Implementation Intention ("When I sit for 1 hr, I do 20 squats"). It appears in the dashboard greeting line, alternating with the welcome message; text too long for one line scrolls, pausing briefly at the start and end
+- **Variable Reward System** — Every **new** log triggers a random tiered reward (Common 75%, Energetic 20%, Legendary 5%) with matching audio via Web Audio API and confetti for legendary draws. Edits do not trigger a reward
 - **Multi-Log Bubble Ring** — Days with 2+ logs show an orange ring on the week grid (Goal-Gradient Effect)
 
 ### Reflection
-- **Daily Reflection** — 🤔 icon in the header opens a reflection modal; one entry per day, editable for today and yesterday, read-only for older days, with `←` `→` day navigation; 500 character limit with live counter
+- **Daily Reflection** — An inline card on the dashboard, below the day log. One entry per day, 500 characters with a live counter. Editable for today and yesterday; older days are read-only
+- **Autosave** — Changing day, or leaving the dashboard, with unsaved reflection text saves it automatically and shows a "✓ Reflection saved" toast
+- A saved reflection cannot be emptied (the database rejects empty text)
 
 ### User Experience
-- **Reward Screens** — Tiered congratulatory phrases (150 total: 95 common, 40 energetic, 15 legendary) with Web Audio synthesised sound effects per tier and gold dark overlay for legendary
-- **About Modal** — ℹ️ icon opens an onboarding modal; auto-shown once for first-time users, always accessible manually
-- **PWA Support** — Service Worker caches the app shell for instant repeat loads and offline access
-- **Haptic Feedback** — Vibration on feeling selection and instant log (Android)
-- **CSV Export** — Downloads all exercise logs and daily reflections; reflection-only days included as standalone rows
+- **Reward Screens** — Tiered congratulatory phrases (150 total: 95 common, 40 energetic, 15 legendary) with Web Audio synthesised sound effects per tier and a gold dark overlay for legendary
+- **About Modal** — Opened from the menu; auto-shown once for first-time users
+- **PWA Support** — The Service Worker fetches the app page **network-first**, so a new release arrives on the next load, and caches the Supabase SDK. Offline, the last cached page still opens, but data needs a connection
+- **Haptic Feedback** — Short vibration when choosing a mood rating (Android)
+- **CSV Export** — Downloads all exercise logs and daily reflections; reflection-only days are included as standalone rows
 
-### Account Management
-- **Profile Customisation** — Nickname, habit anchor, and 4 custom Quick Nugget shortcuts (saved to Supabase)
-- **Email Change** — Dual confirmation (both old and new address must confirm)
-- **Password Reset** — Full forgot-password flow with secure redirect back to app
-- **Account Deletion** — Email confirmation gate + complete data erasure via Edge Function
+### Settings & Account
+- **Settings** (menu → Settings) — Nickname, habit anchor, and the 4 custom Quick Nugget shortcuts (saved to Supabase)
+- **Account** (menu → Account), top to bottom:
+  - **Change Email** — Dual confirmation (both old and new address must confirm)
+  - **Change Password** — Requires the **current password**, which is verified first by re-authenticating. New password must be at least 6 characters, match the repeat, and differ from the current one. One Show/Hide toggle controls all three fields
+  - **Export Logs as CSV**
+  - **Log Out**
+  - **Delete Account** — Email confirmation gate + complete data erasure via Edge Function (kept last, in a red danger zone)
+- **Password Reset** (login screen) — Forgot-password flow with secure redirect back to the app
 
 ### Automated Email Notifications
 - **Daily Nudges** — 8:00 AM and 8:00 PM SGT — sent only to users inactive for 24+ hours; includes habit anchor reminder
@@ -117,16 +125,19 @@ Hosted on GitHub Pages, connected to a Supabase backend (Singapore region).
 ```
 index.html (single file SPA)
 ├── CSS — mobile-first, CSS custom properties, no external stylesheets
-├── HTML — multiple screen divs, modals, overlays
+├── HTML — screens (Dashboard, Log, Settings, Account), menu drawer, About modal, reward overlay
 └── Vanilla JS state
     ├── currentUser       — Supabase session
     ├── currentProfile    — nickname, habit_anchor, quick_nuggets
-    ├── weekLogs          — current week's exercise data
-    ├── activeDate        — selected date for day navigation
-    ├── quickNuggets      — 4 custom instant exercise shortcuts
+    ├── weekLogs          — current week's exercise data (streak, stats, week grid)
+    ├── activeDate        — the day being viewed; drives BOTH the day log and the reflection card
+    ├── quickNuggets      — 4 custom shortcuts shown in the log form
     ├── allPhrases        — reward phrases loaded from DB at init
+    ├── reflection*       — day shown, saved row id, unsaved-text flag, in-flight save (autosave)
     └── welcomeToggleInterval — habit anchor scroll animation handle
 ```
+
+Every return to the dashboard goes through a single `showDashboard(date)` function, which sets the day being viewed and re-renders the logs and the reflection together, so the screen can never show a different day from the one `activeDate` points to.
 
 ### Backend Architecture
 ```
@@ -182,7 +193,7 @@ index.html (single file SPA)
 | `id` | UUID | PRIMARY KEY, DEFAULT gen_random_uuid() |
 | `user_id` | UUID | FK to profiles.id (cascade delete) |
 | `content` | TEXT | NOT NULL, max 500 chars |
-| `reflected_at` | TIMESTAMPTZ | Default: now() |
+| `reflected_at` | TIMESTAMPTZ | App convention: a reflection for calendar day D is stored at 12:00 UTC on D and looked up by that day's UTC window (one per day) |
 | `created_at` | TIMESTAMPTZ | Default: now() |
 
 ### Table: `app_congratulations`
@@ -300,6 +311,7 @@ pg_cron → POST { "token": "SECRET", "type": "daily" }
 - Description fields capped at 250 chars, reflection at 500 chars at both DB and UI level
 - Numeric inputs stripped of non-numeric characters client-side before submission
 - Date inputs validated client-side before hitting Supabase, for both new entries and edits (future dates blocked; only today and yesterday allowed)
+- Changing the password requires the **current password**, verified by re-authenticating before the update is sent; passwords are never trimmed or logged
 
 ---
 
@@ -409,6 +421,8 @@ const APP_URL = 'https://your-username.github.io/nuggercise';
 4. Add `.github/workflows/deploy.yml` (the static pages deploy workflow)
 5. Push — GitHub Actions publishes to `https://[username].github.io/nuggercise`
 
+> **Releases:** re-upload **both** `index.html` and `sw.js` whenever either changes. The service worker serves the app page network-first, but a phone still running an older service worker may need one extra reload to pick up a new release.
+
 ---
 
 ## 🔐 Environment Variables
@@ -473,7 +487,7 @@ const APP_URL = 'https://your-username.github.io/nuggercise';
 | File | Purpose |
 |------|---------|
 | `index.html` | Complete single-file frontend application |
-| `sw.js` | Service Worker for PWA caching |
+| `sw.js` | Service Worker — network-first app page, cached Supabase SDK |
 | `phase2_congratulations.sql` | Seed data for reward phrases |
 | `phase5-cron-jobs.sql` | **Obsolete** — targets an abandoned `send-email` function. Use the Step 7 SQL above instead |
 | `migration_reflections.sql` | Creates reflections table + RLS |
