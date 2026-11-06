@@ -332,9 +332,8 @@ Run in Supabase SQL Editor in this order:
 1. Main schema (profiles, nuggercises, app_congratulations, email_nudges tables + RLS)
 2. `migration_reflections.sql` — creates reflections table
 3. `migration_quick_nuggets.sql` — adds quick_nuggets column to profiles
-4. `migration_logged_at_default.sql` — adds server-side default for logged_at
-5. `migration_profile_trigger.sql` — auto-creates profile on signup
-6. Post-schema fixes (required if your base schema still has the original definitions):
+4. `migration_profile_trigger.sql` — auto-creates profile on signup
+5. Post-schema fixes (required if your base schema still has the original definitions):
    ```sql
    -- Remove the time-window constraint; the app enforces today/yesterday instead
    alter table public.nuggercises drop constraint if exists logged_at_past_limit;
@@ -354,7 +353,9 @@ Run in Supabase SQL Editor in this order:
 3. **Authentication → SMTP:** Configure Gmail SMTP (host: `smtp.gmail.com`, port: 587, secure: TLS)
 
 ### Step 4: Seed Congratulations Phrases
-Run `phase2_congratulations.sql` in the SQL Editor to seed 100 base phrases across all tiers.
+Run `phase2_congratulations.sql` in the SQL Editor to seed 100 base phrases (65 common, 25 energetic, 10 legendary).
+
+The live project has since been extended to 150 phrases (95 / 40 / 15) with plain `INSERT` statements, so a fresh install starts with fewer. Add more any time; the app draws randomly from whatever each tier contains.
 
 ### Step 5: Deploy Edge Functions
 ```bash
@@ -421,6 +422,8 @@ const APP_URL = 'https://your-username.github.io/nuggercise';
 4. Add `.github/workflows/deploy.yml` (the static pages deploy workflow)
 5. Push — GitHub Actions publishes to `https://[username].github.io/nuggercise`
 
+6. **Optional — `manifest.json`:** `index.html` links to one and `sw.js` caches it if present, but it has not been added yet. Without it the browser logs a harmless 404 and the app cannot be installed as a standalone app. Add a manifest (name, icons, `start_url`, `display: standalone`) if you want that. The service worker no longer depends on it: a missing optional file is skipped instead of blocking installation.
+
 > **Releases:** re-upload **both** `index.html` and `sw.js` whenever either changes. The service worker serves the app page network-first, but a phone still running an older service worker may need one extra reload to pick up a new release.
 
 ---
@@ -484,17 +487,29 @@ const APP_URL = 'https://your-username.github.io/nuggercise';
 
 ## 📄 File Reference
 
+### Current
+
 | File | Purpose |
 |------|---------|
 | `index.html` | Complete single-file frontend application |
 | `sw.js` | Service Worker — network-first app page, cached Supabase SDK |
-| `phase2_congratulations.sql` | Seed data for reward phrases |
-| `phase5-cron-jobs.sql` | **Obsolete** — targets an abandoned `send-email` function. Use the Step 7 SQL above instead |
-| `migration_reflections.sql` | Creates reflections table + RLS |
-| `migration_quick_nuggets.sql` | Adds quick_nuggets to profiles |
-| `migration_logged_at_default.sql` | Server-side timestamp default (the time-window constraint it complemented has since been removed — see Step 2, item 6) |
+| `phase2_congratulations.sql` | Seed data for reward phrases (100 base phrases; see Step 4) |
+| `migration_reflections.sql` | Creates the reflections table + RLS |
+| `migration_quick_nuggets.sql` | Adds `quick_nuggets` to profiles |
 | `migration_profile_trigger.sql` | Auto-profile creation trigger |
-| `behavioral-ux-change-tasks.md` | BX feature backlog documentation |
+| `nuggercise-confirm-email.html` | Branded "Confirm signup" email — paste into Supabase → Authentication → Emails |
+| `nuggercise-reset-password-email.html` | Branded "Reset password" email (same place) |
+| `nuggercise-change-email.html` | Branded "Change email address" email (same place) |
+| `delete-account-edge-function.ts` | Reference copy of the `delete-account` Edge Function; the version deployed in Supabase is the source of truth |
+
+### Obsolete — safe to delete
+
+| File | Why |
+|------|-----|
+| `phase5-cron-jobs.sql` | Targets an abandoned `send-email` function. Use the Step 7 SQL instead |
+| `send-email-edge-function.ts` | First, abandoned attempt at the email function; it never worked. The live function is `send-nudge`. If a function named `send-email` is still deployed in Supabase, it can be deleted too |
+| `migration_logged_at_default.sql` | Only supported the removed Instant Nuggercise feature; nothing relies on that default any more |
+| `behavioral-ux-change-tasks.md` | Historical planning notes. BX-2, BX-3 and BX-5 were built; BX-1 (anchor "Just did this" button) and BX-4 (Instant Nuggercise row) were later dropped |
 
 ---
 

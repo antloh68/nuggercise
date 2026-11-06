@@ -12,10 +12,17 @@ const ASSETS_TO_CACHE = [
   'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js',
 ];
 
-// Install: cache all critical assets
+// Install: pre-cache the app shell.
+// Each file is added on its own and a failure is ignored. cache.addAll() would reject
+// the WHOLE install if any single file returned an error (for example a manifest.json
+// that has not been uploaded), leaving the service worker permanently uninstalled.
 self.addEventListener('install', event => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS_TO_CACHE))
+    caches.open(CACHE_NAME).then(cache =>
+      Promise.all(ASSETS_TO_CACHE.map(url =>
+        cache.add(url).catch(err => console.warn('[sw] skipped pre-cache of', url, err && err.message))
+      ))
+    )
   );
   self.skipWaiting();
 });
