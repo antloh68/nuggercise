@@ -66,6 +66,7 @@ Whether it's 20 squats, a 1-minute plank, or desk stretches, Nuggercise helps yo
 - **Reward Screens** — Tiered congratulatory phrases (150 total: 95 common, 40 energetic, 15 legendary) with Web Audio synthesised sound effects per tier and a gold dark overlay for legendary
 - **About Modal** — Opened from the menu; auto-shown once for first-time users
 - **PWA Support** — The Service Worker fetches the app page **network-first**, so a new release arrives on the next load, and caches the Supabase SDK. Offline, the last cached page still opens, but data needs a connection
+- **Installable** — `manifest.json` and the icons in `icons/` let the app be added to a phone's home screen and opened full-screen without the browser's address bar (see *Installing on a phone* under Step 9)
 - **Haptic Feedback** — Short vibration when choosing a mood rating (Android)
 - **CSV Export** — Downloads all exercise logs and daily reflections; reflection-only days are included as standalone rows
 
@@ -422,7 +423,14 @@ const APP_URL = 'https://your-username.github.io/nuggercise';
 4. Add `.github/workflows/deploy.yml` (the static pages deploy workflow)
 5. Push — GitHub Actions publishes to `https://[username].github.io/nuggercise`
 
-6. **Optional — `manifest.json`:** `index.html` links to one and `sw.js` caches it if present, but it has not been added yet. Without it the browser logs a harmless 404 and the app cannot be installed as a standalone app. Add a manifest (name, icons, `start_url`, `display: standalone`) if you want that. The service worker no longer depends on it: a missing optional file is skipped instead of blocking installation.
+6. **Upload the manifest and icons:** add `manifest.json` and the `icons/` folder (`icon-192.png`, `icon-512.png`, `apple-touch-icon.png`) next to `index.html`. The icons are simple placeholders; replace them with your own artwork at the same file names and sizes whenever you like. The manifest's `start_url` and `scope` are the relative `./`, so they resolve to `/nuggercise/`. Never use a path starting with `/`, which would point at the root of `github.io` instead of the app
+
+#### Installing on a phone
+- **Android (Chrome):** open the site and choose **Install app** (or **Add to Home screen**) from the browser menu
+- **iPhone (Safari):** there is no install prompt. Tap **Share → Add to Home Screen**
+- **Check it from a computer:** in Chrome, open DevTools → **Application → Manifest**; it lists anything missing
+- **iPhone: expect to sign in again.** Supabase keeps the login in the browser's localStorage, and an installed iPhone app has its own separate storage
+- **Email links:** confirm-signup, password-reset and change-email links will likely open in the browser, not the installed app. Finish there, then sign in inside the app
 
 > **Releases:** re-upload **both** `index.html` and `sw.js` whenever either changes. The service worker serves the app page network-first, but a phone still running an older service worker may need one extra reload to pick up a new release.
 
@@ -493,6 +501,8 @@ const APP_URL = 'https://your-username.github.io/nuggercise';
 |------|---------|
 | `index.html` | Complete single-file frontend application |
 | `sw.js` | Service Worker — network-first app page, cached Supabase SDK |
+| `manifest.json` | Web app manifest — name, colours, launch URL and icons for installing the app |
+| `icons/` | `icon-192.png`, `icon-512.png` (also used as the maskable icon) and `apple-touch-icon.png` (180×180, for iPhone). Placeholder flame artwork |
 | `phase2_congratulations.sql` | Seed data for reward phrases (100 base phrases; see Step 4) |
 | `migration_reflections.sql` | Creates the reflections table + RLS |
 | `migration_quick_nuggets.sql` | Adds `quick_nuggets` to profiles |
